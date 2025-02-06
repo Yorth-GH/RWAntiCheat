@@ -6,3 +6,5 @@
 #include <tlhelp32.h>
 #include <vector>
 #include <psapi.h>
+#include <fstream>
+#include "AntiCheat.h"

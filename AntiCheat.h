@@ -4,8 +4,10 @@
 class AC
 {
 private:
-	std::vector<std::wstring> forbidden_processes; //TODO: add a list of processes
 public:
-	void process_scanner();
-	void debugger_scanner();
+	static void process_scanner();
+	static void debugger_scanner();
+	static ULONG calculate_crc(const BYTE* data, size_t length);
+	static void game_check();
+	static void injection_scanner();
 };
