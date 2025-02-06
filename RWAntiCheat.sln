@@ -5,6 +5,8 @@ VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RWAntiCheat", "RWAntiCheat.vcxproj", "{5C9D7D15-B545-4069-AD36-AA614343CD33}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RWAntiCheat Server", "RWAntiCheat Server\RWAntiCheat Server.vcxproj", "{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{5C9D7D15-B545-4069-AD36-AA614343CD33}.Release|x64.Build.0 = Release|x64
 		{5C9D7D15-B545-4069-AD36-AA614343CD33}.Release|x86.ActiveCfg = Release|Win32
 		{5C9D7D15-B545-4069-AD36-AA614343CD33}.Release|x86.Build.0 = Release|Win32
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Debug|x64.ActiveCfg = Debug|x64
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Debug|x64.Build.0 = Debug|x64
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Debug|x86.ActiveCfg = Debug|Win32
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Debug|x86.Build.0 = Debug|Win32
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Release|x64.ActiveCfg = Release|x64
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Release|x64.Build.0 = Release|x64
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Release|x86.ActiveCfg = Release|Win32
+		{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

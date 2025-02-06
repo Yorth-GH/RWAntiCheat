@@ -2,6 +2,11 @@
 
 static std::vector<std::wstring> forbidden_processes;
 
+void AC::socket_setup()
+{
+
+}
+
 void AC::process_scanner()
 {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
