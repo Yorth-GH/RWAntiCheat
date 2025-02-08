@@ -1,15 +1,8 @@
-#include <thread>
-#include <iostream>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
+#include "../includes.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
-#define PORT "27015"
-#define IP "127.0.0.1"
-
-char buffer[512];
+char buffer[64];
 
 void client_f(SOCKET cl)
 {
@@ -35,7 +28,7 @@ void main()
 	server_socket.sin_family = AF_INET;
 	server_socket.sin_port = htons(27999);
 
-	inet_pton(AF_INET, IP, &server_socket.sin_addr);
+	InetPton(AF_INET, IP, &server_socket.sin_addr);
 
 	bind(server, (sockaddr*)&server_socket, sizeof(server_socket));
 
@@ -47,7 +40,7 @@ void main()
 	{
 		client = accept(server, (sockaddr*)&client_socket, &clientsize);
 
-		std::cout << "Accepted client: " << client_socket.sin_addr.S_un.S_addr << std::endl;
+		std::cout << "Accepted client: " << inet_ntoa(client_socket.sin_addr) << std::endl;
 
 		std::thread client_thread(client_f, client);
 		client_thread.detach();
