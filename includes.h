@@ -5,6 +5,7 @@
 #endif
 
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment (lib, "wintrust")
 
 #define PORT 27500
 #define IP "127.0.0.1"
@@ -21,3 +22,6 @@
 #include <sstream>
 #include <ws2tcpip.h>
 #include "AntiCheat.h"
+#include <wintrust.h>
+#include <wincrypt.h>
+#include <SoftPub.h>

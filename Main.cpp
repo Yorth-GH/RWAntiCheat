@@ -1,26 +1,42 @@
 #include "includes.h"
 
-extern "C" __declspec(dllexport) void start()
+void server_thread()
 {
-	//TODO: implement features
-
-	uint64_t* heartbeat_timer = 0;
-
-	AC::game_check(); // check if its even running in RetroWar
-
-	std::this_thread::sleep_for(std::chrono::seconds(5)); // let the game load files etc.
-	
 	AC::socket_setup();
+
 	AC::receive_processes();
 	AC::receive_modules();
+}
 
-	while (true) // as long as the anticheat and game are open
-	{
-		AC::process_scanner();
-		AC::debugger_scanner();
-		AC::injection_scanner();
-		(*heartbeat_timer)++;
+void heartbeat_thread()
+{
+	AC::heartbeat_timer++;
 
-		std::this_thread::sleep_for(std::chrono::seconds(5));
-	}
+	std::string heartbeat_string = "5" + AC::heartbeat_timer;
+	AC::send_to_server(heartbeat_string);
+
+	std::this_thread::sleep_for(std::chrono::seconds(15));
+}
+
+void scanner_thread()
+{
+	AC::process_scanner();
+	AC::debugger_scanner();
+	AC::injection_scanner();
+
+	std::this_thread::sleep_for(std::chrono::seconds(60));
+}
+
+extern "C" __declspec(dllexport) void start()
+{
+	AC::game_check(); // check if its even running in RetroWar
+
+	std::this_thread::sleep_for(std::chrono::seconds(10)); // let the game load files etc.
+	
+	std::thread server_communication(server_thread); // open socket to server
+	server_communication.join(); // not continuing until its finished
+
+	std::thread heartbeat_communication(heartbeat_thread); // heartbeat sender
+
+	AC::close_socket();
 }

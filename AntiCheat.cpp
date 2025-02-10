@@ -8,10 +8,15 @@ SOCKET client_socket;
 sockaddr_in server_addr;
 char buffer[64];
 
-
+void AC::close_socket()
+{
+    send_to_server("6");
+    closesocket(client_socket);
+    WSACleanup();
+}
 void AC::send_to_server(std::string str)
 {
-    send(client_socket, str.c_str(), 64, 0)
+    send(client_socket, str.c_str(), 64, 0);
 }
 void AC::receive_processes()
 {
@@ -39,7 +44,11 @@ void AC::receive_modules()
 }
 void AC::socket_setup()
 {
-    WSAStartup(MAKEWORD(2, 2), &wsa);
+    if (!WSAStartup(MAKEWORD(2, 2), &wsa))
+    {
+        closesocket(client_socket);
+        WSACleanup();
+    }
 
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
     server_addr.sin_family = AF_INET;
@@ -52,8 +61,9 @@ void AC::socket_setup()
         closesocket(client_socket);
         WSACleanup();
     }
-}
 
+    send_to_server("0");
+}
 
 void AC::process_scanner()
 {
@@ -98,10 +108,18 @@ void AC::injection_scanner()
     if (Module32First(hSnapshot, &me32)) {
         do {
             for (std::string s : allowed_modules)
-                if (count(allowed_modules.begin(), allowed_modules.end(), s) == 0)
+                if (count(allowed_modules.begin(), allowed_modules.end(), s) == 0 && count(loaded_modules.begin(), loaded_modules.end(), s) == 0)
                 {
                     std::string finals = "4" + s;
                     send_to_server(finals);
+                    loaded_modules.push_back(s);
+
+                    HMODULE h_module = GetModuleHandle(s.c_str());
+                    std::string dumpstring = s + ".dmp";
+                    dump_module(h_module, dumpstring);
+                    if (!verify_module(dumpstring))
+                        send_to_server("Unverified");
+
                     //Not closing, only sending information about the modules!
                     //ExitProcess(1);
                 }
@@ -146,7 +164,6 @@ void AC::game_check()
         ExitProcess(1);
     }
 }
-
 ULONG AC::calculate_crc(const BYTE* data, size_t length) {
     DWORD crc = 0xFFFFFFFF;
     for (size_t i = 0; i < length; i++) {
@@ -171,4 +188,40 @@ std::vector<std::string> deserialize_vector(const std::string& data)
         vec.push_back(line);
 
     return vec;
+}
+
+bool AC::verify_module(std::string path)
+{
+    std::wstring wide_path(path.begin(), path.end());
+    WINTRUST_FILE_INFO file_info = { sizeof(WINTRUST_FILE_INFO), wide_path.c_str(), NULL };
+    WINTRUST_DATA data = { 0 };
+
+    data.cbStruct = sizeof(WINTRUST_DATA);
+    data.dwUIChoice = WTD_UI_NONE;
+    data.fdwRevocationChecks = WTD_REVOKE_NONE;
+    data.dwUnionChoice = WTD_CHOICE_FILE;
+    data.pFile = &file_info;
+    data.dwStateAction = WTD_STATEACTION_VERIFY;
+    data.dwProvFlags = WTD_REVOCATION_CHECK_NONE;
+
+    GUID action_id = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    LONG status = WinVerifyTrust(NULL, &action_id, &data);
+
+    data.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(NULL, &action_id, &data);
+
+    return status == ERROR_SUCCESS;
+}
+void AC::dump_module(HMODULE module, std::string path)
+{
+    MODULEINFO info = { 0 };
+    GetModuleInformation(GetCurrentProcess(), module, &info, sizeof(info));
+
+    if (info.lpBaseOfDll == nullptr || info.SizeOfImage == 0)
+        return;
+    // there is a chance its manually mapped, will find out how to detect and dump
+
+    std::ofstream dumped(path, std::ios::binary);
+    dumped.write(reinterpret_cast<const char*>(info.lpBaseOfDll), info.SizeOfImage);
+    dumped.close();
 }
