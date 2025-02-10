@@ -1,7 +1,8 @@
 #include "AntiCheat.h"
 
-static std::vector<std::string> forbidden_processes;
-static std::vector<std::string> allowed_modules;
+std::vector<std::string> forbidden_processes;
+std::vector<std::string> allowed_modules;
+std::vector<std::string> loaded_modules;
 
 WSADATA wsa;
 SOCKET client_socket;

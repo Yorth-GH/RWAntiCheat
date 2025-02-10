@@ -8,11 +8,13 @@ void server_thread()
 	AC::receive_modules();
 }
 
+uint32_t heartbeat_timer = 0;
+
 void heartbeat_thread()
 {
-	AC::heartbeat_timer++;
+	heartbeat_timer++;
 
-	std::string heartbeat_string = "5" + AC::heartbeat_timer;
+	std::string heartbeat_string = "5" + heartbeat_timer;
 	AC::send_to_server(heartbeat_string);
 
 	std::this_thread::sleep_for(std::chrono::seconds(15));

@@ -15,6 +15,7 @@
 #include <WinSock2.h>
 #include <thread>
 #include <chrono>
+#include <filesystem>
 #include <tlhelp32.h>
 #include <vector>
 #include <psapi.h>

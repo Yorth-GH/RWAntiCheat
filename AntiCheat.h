@@ -4,7 +4,6 @@
 class AC
 {
 public:
-	static uint32_t heartbeat_timer;
 	static void process_scanner();
 	static void debugger_scanner();
 	static ULONG calculate_crc(const BYTE* data, size_t length);
@@ -15,10 +14,8 @@ public:
 	static void receive_modules();
 	static void send_to_server(std::string str);
 	static void close_socket();
-	static std::vector<std::string> loaded_modules;
 	static bool verify_module(std::string module);
 	static void dump_module(HMODULE module, std::string path);
-	static void dump_manually_mapped(HMODULE module, std::string path);
 };
 
 /*
