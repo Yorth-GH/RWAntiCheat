@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>RetroWar.ACSrv</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>RetroWar.ACSrv</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RetroWar.Api">
+      <HintPath>..\RetroWar.Api.dll</HintPath>
+    </Reference>
+    <Reference Include="RetroWar.MySql">
+      <HintPath>..\RetroWar.MySql.dll</HintPath>
+    </Reference>
+    <Reference Include="RetroWar.Shared">
+      <HintPath>..\RetroWar.Shared.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

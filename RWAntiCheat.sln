@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RWAntiCheat", "RWAntiCheat.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RWAntiCheat Server", "RWAntiCheat Server\RWAntiCheat Server.vcxproj", "{50F5F9D5-BD43-4F71-A10E-BA77503B7B06}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RWAntiCheat Server C#", "RWAntiCheat Server C#\RWAntiCheat Server C#.csproj", "{2B165A6E-C02E-4D06-AD15-D416D13D848F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RetroWar.ACSrv", "RWAntiCheat Server C#\RetroWar.ACSrv.csproj", "{2B165A6E-C02E-4D06-AD15-D416D13D848F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
