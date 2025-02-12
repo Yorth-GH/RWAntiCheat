@@ -8,7 +8,7 @@
 #pragma comment (lib, "wintrust")
 
 #define PORT 27500
-#define IP "127.0.0.1"
+#define IP "188.246.93.212"
 
 #include <iostream>
 #include <windows.h>

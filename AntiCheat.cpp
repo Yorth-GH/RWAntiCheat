@@ -1,7 +1,5 @@
 #include "AntiCheat.h"
 
-std::vector<std::string> forbidden_processes;
-std::vector<std::string> allowed_modules;
 std::vector<std::string> loaded_modules;
 
 WSADATA wsa;
@@ -17,38 +15,15 @@ void AC::close_socket()
 }
 void AC::send_to_server(std::string str)
 {
-    send(client_socket, str.c_str(), 64, 0);
+    send(client_socket, str.c_str(), strlen(str.c_str()), 0);
 }
-void AC::receive_processes()
+bool AC::socket_setup()
 {
-    while (true) {
-        int bytesReceived = recv(client_socket, buffer, 64, 0);
-        if (bytesReceived <= 0)
-            break;
-
-        buffer[bytesReceived] = '\0';
-        std::string process = buffer;
-        forbidden_processes.push_back(process);
-    }
-}
-void AC::receive_modules()
-{
-    while (true) {
-        int bytesReceived = recv(client_socket, buffer, 64, 0);
-        if (bytesReceived <= 0)
-            break;
-
-        buffer[bytesReceived] = '\0';
-        std::string modules = buffer;
-        allowed_modules.push_back(modules);
-    }
-}
-void AC::socket_setup()
-{
-    if (!WSAStartup(MAKEWORD(2, 2), &wsa))
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
     {
-        closesocket(client_socket);
+        std::cout << "This works" << std::endl;
         WSACleanup();
+        return false;
     }
 
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -61,9 +36,11 @@ void AC::socket_setup()
     {
         closesocket(client_socket);
         WSACleanup();
+        return false;
     }
 
     send_to_server("0");
+    return true;
 }
 
 void AC::process_scanner()
@@ -74,12 +51,13 @@ void AC::process_scanner()
 
     if (Process32First(snapshot, &process_entry))
         do {
-            for (std::string s : forbidden_processes)
-                if (process_entry.szExeFile == s)
+                //if (process_entry.szExeFile == s)
                 {
-                    std::string finals = "3" + s;
+                    std::string a = process_entry.szExeFile;
+                    std::string finals = "3" + a;
                     send_to_server(finals);
-                    ExitProcess(1);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    //ExitProcess(1);
                 }
         } while (Process32Next(snapshot, &process_entry));
     CloseHandle(snapshot);
@@ -93,7 +71,7 @@ void AC::debugger_scanner()
     if (IsDebuggerPresent() || remote_debugger_present)
     {
         send_to_server("2");
-        ExitProcess(1);
+        //ExitProcess(1);
     }
 }
 void AC::injection_scanner()
@@ -108,18 +86,20 @@ void AC::injection_scanner()
     me32.dwSize = sizeof(MODULEENTRY32);
     if (Module32First(hSnapshot, &me32)) {
         do {
-            for (std::string s : allowed_modules)
-                if (count(allowed_modules.begin(), allowed_modules.end(), s) == 0 && count(loaded_modules.begin(), loaded_modules.end(), s) == 0)
+                if (count(loaded_modules.begin(), loaded_modules.end(), me32.szModule) == 0)
                 {
-                    std::string finals = "4" + s;
-                    send_to_server(finals);
-                    loaded_modules.push_back(s);
+                    std::string a = me32.szModule;
+                    std::string finals = "4" + a;
+                   
+                    loaded_modules.push_back(me32.szModule);
 
-                    HMODULE h_module = GetModuleHandle(s.c_str());
-                    std::string dumpstring = s + ".dmp";
+                    HMODULE h_module = GetModuleHandle(me32.szModule);
+                    std::string dumpstring = a + ".dmp";
                     dump_module(h_module, dumpstring);
                     if (!verify_module(dumpstring))
-                        send_to_server("Unverified");
+                        finals[0] = '7';
+                       send_to_server(finals);
+                       std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
                     //Not closing, only sending information about the modules!
                     //ExitProcess(1);
@@ -133,8 +113,7 @@ void AC::game_check()
     std::ifstream WarRock("WarRock.exe", std::ios::binary);
     std::vector<BYTE> WarRock_bytes((std::istreambuf_iterator<char>(WarRock)), std::istreambuf_iterator<char>());
 
-    // SHOULD IDEALLY BE ALREADY SAVED SO YOU DONT HAVE TO RECALCULATE IT
-    // BUT IS RAN ONLY ONCE SO IT DOESNT AFFECT PERFORMANCE
+    // SHOULD BE SAVED BECAUSE WE CAN LAUNCH FAKE WARROCK
     ULONG WarRock_CRC = calculate_crc(WarRock_bytes.data(), WarRock_bytes.size());
 
     std::ofstream out("out.txt");

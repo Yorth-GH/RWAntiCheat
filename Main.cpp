@@ -1,13 +1,5 @@
 #include "includes.h"
 
-void server_thread()
-{
-	AC::socket_setup();
-
-	AC::receive_processes();
-	AC::receive_modules();
-}
-
 uint32_t heartbeat_timer = 0;
 
 void heartbeat_thread()
@@ -16,29 +8,62 @@ void heartbeat_thread()
 
 	std::string heartbeat_string = "5" + heartbeat_timer;
 	AC::send_to_server(heartbeat_string);
-
-	std::this_thread::sleep_for(std::chrono::seconds(15));
-}
-
-void scanner_thread()
-{
-	AC::process_scanner();
-	AC::debugger_scanner();
-	AC::injection_scanner();
-
-	std::this_thread::sleep_for(std::chrono::seconds(60));
 }
 
 extern "C" __declspec(dllexport) void start()
 {
-	AC::game_check(); // check if its even running in RetroWar
+    //AC::game_check(); // check if its even running in RetroWar
+    AC::socket_setup();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    if (!AC::socket_setup())
+        ExitProcess(1);
+    while (true)
+    {
+        heartbeat_thread();
+        AC::process_scanner();
+        AC::debugger_scanner();
+        AC::injection_scanner();
+        std::this_thread::sleep_for(std::chrono::milliseconds(15000));
+    }
+}
 
-	std::this_thread::sleep_for(std::chrono::seconds(10)); // let the game load files etc.
-	
-	std::thread server_communication(server_thread); // open socket to server
-	server_communication.join(); // not continuing until its finished
+unsigned long WINAPI initialize(void* instance)
+{
+    std::thread s(start);
+    s.detach();
 
-	std::thread heartbeat_communication(heartbeat_thread); // heartbeat sender
+    while (true)
+        std::this_thread::sleep_for(std::chrono::milliseconds(60000));
+}
 
-	AC::close_socket();
+BOOL WINAPI DllMain(
+    void* hinstDLL,  // handle to DLL module
+    DWORD fdwReason,     // reason for calling function
+    LPVOID lpvReserved)  // reserved
+{
+    DisableThreadLibraryCalls(static_cast<HMODULE>(hinstDLL));  
+
+    switch (fdwReason)
+    {
+    case DLL_PROCESS_ATTACH:
+        if (auto handle = CreateThread(NULL, NULL, initialize, hinstDLL, NULL, NULL))
+            CloseHandle(handle);
+        break;
+
+    case DLL_THREAD_ATTACH:
+        break;
+
+    case DLL_THREAD_DETACH:
+        break;
+
+    case DLL_PROCESS_DETACH:
+
+        if (lpvReserved != nullptr)
+        {
+            break;
+        }
+
+        break;
+    }
+    return TRUE;
 }

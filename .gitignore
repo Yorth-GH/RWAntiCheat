@@ -56,3 +56,6 @@
 /RWAntiCheat Server/Debug
 /RWAntiCheat/.vs
 *.txt
+/RWAntiCheat/Release
+/RWAntiCheat Server C#/bin/Debug/net8.0
+/RWAntiCheat Server C#/obj
