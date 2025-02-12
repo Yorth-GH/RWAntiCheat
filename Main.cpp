@@ -8,21 +8,38 @@ void heartbeat_thread()
 
 	std::string heartbeat_string = "5" + heartbeat_timer;
 	AC::send_to_server(heartbeat_string);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(15000));
+}
+
+void others_thread()
+{
+    AC::process_scanner();
+    AC::debugger_scanner();
+    AC::injection_scanner();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(60000));
 }
 
 extern "C" __declspec(dllexport) void start()
 {
-    //AC::game_check(); // check if its even running in RetroWar
+    //AC::game_check();
+
     AC::socket_setup();
+
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
     if (!AC::socket_setup())
         ExitProcess(1);
+
     while (true)
     {
-       // heartbeat_thread();
-      //  AC::process_scanner();
-      //  AC::debugger_scanner();
-        AC::injection_scanner();
+        std::thread hb(heartbeat_thread);
+        hb.detach();
+
+       // std::thread ot(others_thread);
+       // ot.detach();
+
         std::this_thread::sleep_for(std::chrono::milliseconds(15000));
     }
 }
