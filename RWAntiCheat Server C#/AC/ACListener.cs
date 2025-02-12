@@ -39,7 +39,7 @@ namespace RetroWar.ACSrv
                 if (ClientSock.Connected)
                 {
                     _connectionId++;
-                    AuthClient Client = new AuthClient(ClientSock, _connectionId, false);
+                    ACClient Client = new ACClient(ClientSock, _connectionId, false);
                     _clientList.Add(Client);
                 }
             }

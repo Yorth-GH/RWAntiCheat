@@ -13,6 +13,9 @@
     <Reference Include="RetroWar.Api">
       <HintPath>..\RetroWar.Api.dll</HintPath>
     </Reference>
+    <Reference Include="RetroWar.Game">
+      <HintPath>..\RetroWar.Game.dll</HintPath>
+    </Reference>
     <Reference Include="RetroWar.MySql">
       <HintPath>..\RetroWar.MySql.dll</HintPath>
     </Reference>
