@@ -82,6 +82,9 @@ void AC::injection_scanner()
     if (hSnapshot == INVALID_HANDLE_VALUE)
         return;
 
+    char processPath[MAX_PATH];
+    GetModuleFileNameA(nullptr, processPath, MAX_PATH);
+
     MODULEENTRY32 me32;
     me32.dwSize = sizeof(MODULEENTRY32);
     if (Module32First(hSnapshot, &me32)) {
@@ -94,9 +97,19 @@ void AC::injection_scanner()
                     loaded_modules.push_back(me32.szModule);
 
                     HMODULE h_module = GetModuleHandle(me32.szModule);
-                    std::string dumpstring = a + ".dmp";
-                    dump_module(h_module, dumpstring);
-                    if (!verify_module(dumpstring))
+                    std::string dumpstring = a;
+                    
+                    std::string directory(processPath);
+                    size_t pos = directory.find_last_of("\\/");
+                    if (pos != std::string::npos)
+                        directory = directory.substr(0, pos + 1); // Keep the trailing slash
+
+                    // Construct full path
+                    std::string fullPath = directory + dumpstring;
+
+
+                    dump_module(h_module, fullPath);
+                    if (!verify_module(h_module))
                         finals[0] = '7';
                        send_to_server(finals);
                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -170,28 +183,30 @@ std::vector<std::string> deserialize_vector(const std::string& data)
     return vec;
 }
 
-bool AC::verify_module(std::string path)
+bool AC::verify_module(HMODULE moduleBase)
 {
-    std::wstring wide_path(path.begin(), path.end());
-    WINTRUST_FILE_INFO file_info = { sizeof(WINTRUST_FILE_INFO), wide_path.c_str(), NULL };
-    WINTRUST_DATA data = { 0 };
+    if (!moduleBase)
+        return false;
 
-    data.cbStruct = sizeof(WINTRUST_DATA);
-    data.dwUIChoice = WTD_UI_NONE;
-    data.fdwRevocationChecks = WTD_REVOKE_NONE;
-    data.dwUnionChoice = WTD_CHOICE_FILE;
-    data.pFile = &file_info;
-    data.dwStateAction = WTD_STATEACTION_VERIFY;
-    data.dwProvFlags = WTD_REVOCATION_CHECK_NONE;
+    // Get the DOS header
+    auto dosHeader = reinterpret_cast<IMAGE_DOS_HEADER*>(moduleBase);
+    if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+        return false; // Not a valid PE file
 
-    GUID action_id = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-    LONG status = WinVerifyTrust(NULL, &action_id, &data);
+    // Get the NT headers
+    auto ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS*>(
+        reinterpret_cast<BYTE*>(moduleBase) + dosHeader->e_lfanew
+        );
+    if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
+        return false; // Not a valid PE file
 
-    data.dwStateAction = WTD_STATEACTION_CLOSE;
-    WinVerifyTrust(NULL, &action_id, &data);
+    // Check the IMAGE_DIRECTORY_ENTRY_SECURITY
+    IMAGE_DATA_DIRECTORY securityDir = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_SECURITY];
 
-    return status == ERROR_SUCCESS;
+    // If the security directory is present and non-zero, the file is signed
+    return (securityDir.VirtualAddress != 0 && securityDir.Size != 0);
 }
+
 void AC::dump_module(HMODULE module, std::string path)
 {
     MODULEINFO info = { 0 };
@@ -202,6 +217,11 @@ void AC::dump_module(HMODULE module, std::string path)
     // there is a chance its manually mapped, will find out how to detect and dump
 
     std::ofstream dumped(path, std::ios::binary);
+    if (!dumped.is_open()) {
+        std::cerr << "Failed to open file: " << path << std::endl;
+        return;
+    }
     dumped.write(reinterpret_cast<const char*>(info.lpBaseOfDll), info.SizeOfImage);
+    dumped.flush();
     dumped.close();
 }

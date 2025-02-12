@@ -19,9 +19,9 @@ extern "C" __declspec(dllexport) void start()
         ExitProcess(1);
     while (true)
     {
-        heartbeat_thread();
-        AC::process_scanner();
-        AC::debugger_scanner();
+       // heartbeat_thread();
+      //  AC::process_scanner();
+      //  AC::debugger_scanner();
         AC::injection_scanner();
         std::this_thread::sleep_for(std::chrono::milliseconds(15000));
     }

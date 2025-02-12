@@ -12,7 +12,7 @@ public:
 	static bool socket_setup();
 	static void send_to_server(std::string str);
 	static void close_socket();
-	static bool verify_module(std::string module);
+	static bool verify_module(HMODULE moduleBase);
 	static void dump_module(HMODULE module, std::string path);
 };
 
