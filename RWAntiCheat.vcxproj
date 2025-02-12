@@ -43,7 +43,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -111,7 +111,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;RWANTICHEAT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;RWANTICHEAT_EXPORTS;_WINDOWS;_USRDLL;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -142,12 +142,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AntiCheat.cpp" />
-    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Application\applicationCore.cpp" />
+    <ClCompile Include="RunTime\antiCheat.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Networking\socketClient.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AntiCheat.h" />
+    <ClInclude Include="Application\applicationCore.h" />
+    <ClInclude Include="RunTime\antiCheat.h" />
     <ClInclude Include="includes.h" />
+    <ClInclude Include="Networking\packetBuilder.h" />
+    <ClInclude Include="Networking\packetReader.h" />
+    <ClInclude Include="Networking\socketClient.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

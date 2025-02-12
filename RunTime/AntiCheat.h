@@ -1,17 +1,23 @@
 #pragma once
-#include "includes.h"
+
+class socketClient;
 
 class AC
 {
 public:
-	static void process_scanner();
-	static void debugger_scanner();
+	static void update(socketClient* connection);
+
+	//core modules
+	static void process_scanner(socketClient* connection);
+	static void debugger_scanner(socketClient* connection);
+	static void game_check(socketClient* connection);
+	static void injection_scanner(socketClient* connection);
+	 
+	//net funcs
+	static void SendReport(socketClient* connection, int type, std::string message = "");
+	 
+	//helper funcs -- TADO make helper classes
 	static ULONG calculate_crc(const BYTE* data, size_t length);
-	static void game_check();
-	static void injection_scanner();
-	static bool socket_setup();
-	static void send_to_server(std::string str);
-	static void close_socket();
 	static bool verify_module(HMODULE moduleBase);
 	static void dump_module(HMODULE module, std::string path);
 };

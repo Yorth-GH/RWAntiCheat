@@ -3,26 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 
 namespace RetroWar.ACSrv
-{
-    public enum E_LoginErr : int
-    {
-        Exception = 70101,
-        NewNickname = 72000,
-        WrongUser = 72010,
-        WrongPW = 72020,
-        AlreadyLoggedIn = 72030,
-        ClientVerNotMatch = 70301,
-        Banned = 73050,
-        BannedTime = 73020,
-        NotActive = 73040,
-        EnterIDError = 74010,
-        EnterPasswordError = 74020,
-        ErrorNickname = 74030,
-        NicknameTaken = 74070,
-        NicknameToLong = 74100, // Longer then 10 characters.
-        IlligalNickname = 74110
-    };
-
+{ 
     internal class ACClient
     {
         private Socket _client;

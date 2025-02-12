@@ -1,49 +1,15 @@
-#include "AntiCheat.h"
+#include "../includes.h"
 
 std::vector<std::string> loaded_modules;
-
-WSADATA wsa;
-SOCKET client_socket;
-sockaddr_in server_addr;
-char buffer[64];
-
-void AC::close_socket()
+ 
+void AC::update(socketClient* connection)
 {
-    send_to_server("6");
-    closesocket(client_socket);
-    WSACleanup();
-}
-void AC::send_to_server(std::string str)
-{
-    send(client_socket, str.c_str(), strlen(str.c_str()), 0);
-}
-bool AC::socket_setup()
-{
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-    {
-        std::cout << "This works" << std::endl;
-        WSACleanup();
-        return false;
-    }
-
-    client_socket = socket(AF_INET, SOCK_STREAM, 0);
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
-
-    InetPton(AF_INET, IP, &server_addr.sin_addr);
-
-    if (connect(client_socket, (sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR)
-    {
-        closesocket(client_socket);
-        WSACleanup();
-        return false;
-    }
-
-    send_to_server("0");
-    return true;
+    //  process_scanner(connection);
+    //  debugger_scanner(connection);
+    injection_scanner(connection);
 }
 
-void AC::process_scanner()
+void AC::process_scanner(socketClient* connection)
 {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     PROCESSENTRY32 process_entry;
@@ -52,17 +18,15 @@ void AC::process_scanner()
     if (Process32First(snapshot, &process_entry))
         do {
                 //if (process_entry.szExeFile == s)
-                {
-                    std::string a = process_entry.szExeFile;
-                    std::string finals = "3" + a;
-                    send_to_server(finals);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                { 
+                    SendReport(connection, 1 /*gamecheck*/, process_entry.szExeFile);
                     //ExitProcess(1);
                 }
         } while (Process32Next(snapshot, &process_entry));
     CloseHandle(snapshot);
 }
-void AC::debugger_scanner()
+
+void AC::debugger_scanner(socketClient* connection)
 {
     //remote debugger
     BOOL remote_debugger_present = FALSE;
@@ -70,11 +34,12 @@ void AC::debugger_scanner()
     //direct debugger
     if (IsDebuggerPresent() || remote_debugger_present)
     {
-        send_to_server("2");
+        SendReport(connection, 2 /*debugger*/);
         //ExitProcess(1);
     }
 }
-void AC::injection_scanner()
+
+void AC::injection_scanner(socketClient* connection)
 {
     DWORD process_id = GetCurrentProcessId();
 
@@ -90,38 +55,25 @@ void AC::injection_scanner()
     if (Module32First(hSnapshot, &me32)) {
         do {
                 if (count(loaded_modules.begin(), loaded_modules.end(), me32.szModule) == 0)
-                {
-                    std::string a = me32.szModule;
-                    std::string finals = "4" + a;
-                   
+                { 
                     loaded_modules.push_back(me32.szModule);
 
-                    HMODULE h_module = GetModuleHandle(me32.szModule);
-                    std::string dumpstring = a;
+                    HMODULE h_module = GetModuleHandle(me32.szModule); 
                     
                     std::string directory(processPath);
                     size_t pos = directory.find_last_of("\\/");
                     if (pos != std::string::npos)
-                        directory = directory.substr(0, pos + 1); // Keep the trailing slash
+                        directory = directory.substr(0, pos + 1); // Keep the trailing slash 
+                    dump_module(h_module, directory + me32.szModule);
 
-                    // Construct full path
-                    std::string fullPath = directory + dumpstring;
-
-
-                    dump_module(h_module, fullPath);
-                    if (!verify_module(h_module))
-                        finals[0] = '7';
-                       send_to_server(finals);
-                       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-                    //Not closing, only sending information about the modules!
-                    //ExitProcess(1);
+                    SendReport(connection,(verify_module(h_module) == true ? 4 /*module*/ : 7 /*unknown module*/), me32.szModule);
                 }
         } while (Module32Next(hSnapshot, &me32));
     }
     CloseHandle(hSnapshot);
 }
-void AC::game_check()
+
+void AC::game_check(socketClient *connection)
 {
     std::ifstream WarRock("WarRock.exe", std::ios::binary);
     std::vector<BYTE> WarRock_bytes((std::istreambuf_iterator<char>(WarRock)), std::istreambuf_iterator<char>());
@@ -152,11 +104,22 @@ void AC::game_check()
     ULONG exe_CRC = calculate_crc(exe_bytes.data(), exe_bytes.size());
     if (exe_CRC != WarRock_CRC || !WarRock.is_open())
     {
-        std::string finals = "1" + exe_path;
-        send_to_server(finals);
+     /*   std::string finals = "1" + exe_path;
+        send_to_server(finals);*/
+        SendReport(connection, 1 /*gamecheck*/, exe_path);
         ExitProcess(1);
     }
 }
+
+void AC::SendReport(socketClient* connection, int type, std::string message)
+{
+    auto packet = new packetBuilder(11001); // placeholder opcodes we still need to decide on real ones lol  
+    packet->AddInt(type);
+    if (message.length() > 0)
+        packet->AddString(message);
+    connection->Send(packet->Build());
+}
+
 ULONG AC::calculate_crc(const BYTE* data, size_t length) {
     DWORD crc = 0xFFFFFFFF;
     for (size_t i = 0; i < length; i++) {
@@ -171,7 +134,7 @@ ULONG AC::calculate_crc(const BYTE* data, size_t length) {
 }
 
 // for receivig vectors
-std::vector<std::string> deserialize_vector(const std::string& data) 
+std::vector<std::string> deserialize_vector(const std::string& data)
 {
     std::vector<std::string> vec;
     std::istringstream iss(data);
