@@ -39,6 +39,20 @@ void AC::debugger_scanner(socketClient* connection)
     }
 }
 
+bool system_module(HMODULE h_module) {
+    char module_path[MAX_PATH];
+    if (GetModuleFileNameEx(GetCurrentProcess(), h_module, module_path, MAX_PATH)) {
+        std::string path(module_path);
+        std::transform(path.begin(), path.end(), path.begin(), ::tolower);
+
+        return (path.find("c:\\windows\\system32\\") == 0 ||
+            path.find("c:\\windows\\syswow64\\") == 0 ||
+            path.find("c:\\windows\\winsxs\\") == 0 ||
+            path.find("c:\\windows\\systemapps\\") == 0);
+    }
+    return false;
+}
+
 void AC::injection_scanner(socketClient* connection)
 {
     DWORD process_id = GetCurrentProcessId();
@@ -60,13 +74,17 @@ void AC::injection_scanner(socketClient* connection)
 
                     HMODULE h_module = GetModuleHandle(me32.szModule); 
                     
-                    std::string directory(processPath);
-                    size_t pos = directory.find_last_of("\\/");
-                    if (pos != std::string::npos)
-                        directory = directory.substr(0, pos + 1); // Keep the trailing slash 
-                    dump_module(h_module, directory + me32.szModule);
+                    if (!system_module(h_module))
+                    {
+                        std::string directory(processPath);
+                        size_t pos = directory.find_last_of("\\/");
+                        if (pos != std::string::npos)
+                            directory = directory.substr(0, pos + 1); // Keep the trailing slash 
+                        dump_module(h_module, directory + me32.szModule);
 
-                    SendReport(connection,(verify_module(h_module) == true ? 4 /*module*/ : 7 /*unknown module*/), me32.szModule);
+                        SendReport(connection, (verify_module(h_module) == true ? 4 /*module*/ : 7 /*unknown module*/), me32.szModule);
+                    }
+                    
                 }
         } while (Module32Next(hSnapshot, &me32));
     }
@@ -80,7 +98,7 @@ void AC::game_check(socketClient *connection)
 
     // SHOULD BE SAVED BECAUSE WE CAN LAUNCH FAKE WARROCK
     ULONG WarRock_CRC = calculate_crc(WarRock_bytes.data(), WarRock_bytes.size());
-
+    
     std::ofstream out("out.txt");
     out << WarRock_CRC;
     out.close();
@@ -131,19 +149,6 @@ ULONG AC::calculate_crc(const BYTE* data, size_t length) {
                 crc >>= 1;
     }
     return ~crc;
-}
-
-// for receivig vectors
-std::vector<std::string> deserialize_vector(const std::string& data)
-{
-    std::vector<std::string> vec;
-    std::istringstream iss(data);
-    std::string line;
-
-    while (std::getline(iss, line))
-        vec.push_back(line);
-
-    return vec;
 }
 
 bool AC::verify_module(HMODULE moduleBase)

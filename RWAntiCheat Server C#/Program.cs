@@ -1,6 +1,4 @@
-﻿
-
-using System;
+﻿using System;
 using RetroWar.Shared;
 
 namespace RetroWar.ACSrv
@@ -32,11 +30,11 @@ namespace RetroWar.ACSrv
                 return;
             }
 
-            if (RetroWar.Api.Connection.Test(ServerConfig.GetValue("api_url"), ServerConfig.GetValue("api_key")) == false)
-            {
-                RetroWar.Shared.Logging.Instance.Error("Could not reach db api.");
-                return;
-            }
+            //if (RetroWar.Api.Connection.Test(ServerConfig.GetValue("api_url"), ServerConfig.GetValue("api_key")) == false)
+            //{
+            //    RetroWar.Shared.Logging.Instance.Error("Could not reach db api.");
+            //    return;
+            //}
 
             ACServer = new ACListener(1337);
             if (ACServer.Start())

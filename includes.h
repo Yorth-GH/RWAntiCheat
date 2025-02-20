@@ -8,7 +8,7 @@
 #pragma comment(lib, "winmm.lib")
 #pragma comment (lib, "wintrust")
 
-#define PORT 27500
+#define PORT 1337
 #define IP "188.246.93.212"
 
 #include <iostream>
@@ -25,6 +25,7 @@
 #include <ws2tcpip.h>
 #include <wintrust.h>
 #include <wincrypt.h>
+#include <algorithm>
 #include <SoftPub.h>
 
 

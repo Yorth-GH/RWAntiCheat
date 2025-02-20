@@ -3,7 +3,7 @@
 applicationCore* core = NULL;
 socketClient* connection = NULL;
  
-void MainLoop()
+DWORD WINAPI MainLoop(void* inst)
 {
     while (TRUE)
     { 
@@ -12,6 +12,7 @@ void MainLoop()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
+    FreeLibraryAndExitThread((HMODULE)inst, 0);
 }
    
 //Later for loading via internal dll :D
@@ -34,7 +35,10 @@ BOOL WINAPI DllMain(
     {
     case DLL_PROCESS_ATTACH: {
         core->Initialize(connection); 
-        std::thread s(MainLoop); s.detach();
+        /*std::thread s(MainLoop);
+        s.detach();*/
+        HANDLE h = CreateThread(0, 0, MainLoop, hinstDLL, 0, 0);
+        CloseHandle(h);
         break;
     }
 

@@ -98,6 +98,11 @@ namespace RetroWar.ACSrv
 
         private void OnReceive(IAsyncResult ar)
         {
+            OnReceive(ar, _packetCache);
+        }
+
+        private void OnReceive(IAsyncResult ar, List<byte> _packetCache)
+        {
             try
             {
                 int length = _client.EndReceive(ar);
@@ -105,7 +110,7 @@ namespace RetroWar.ACSrv
                 else
                 {
                     for (int i = 0; i < length; i++)
-                        _packetCache.Add((byte)(_buffer[i] ^ 0xC3));
+                        _packetCache.Add((byte)(_buffer[i]));
 
                     int startIndex = 0;
                     for (int i = 0; i < _packetCache.Count; i++)
@@ -113,7 +118,7 @@ namespace RetroWar.ACSrv
                         if (_packetCache[i] == (byte)'\n')
                         {
                             byte[] packetBuffer = new byte[i - startIndex];
-                            _packetCache.CopyTo(0, packetBuffer, startIndex, i - startIndex);
+                            _packetCache.CopyTo(startIndex, packetBuffer, 0, i - startIndex);
 
                             ProcessMsg(packetBuffer);
 
@@ -123,7 +128,7 @@ namespace RetroWar.ACSrv
 
                     if (startIndex < _packetCache.Count)
                     {
-                        _packetCache.RemoveRange(0, startIndex - 1);
+                        _packetCache.RemoveRange(0, startIndex );
                     }
                     else
                     {
