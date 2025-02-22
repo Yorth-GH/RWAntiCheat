@@ -30,12 +30,25 @@ namespace RetroWar.ACSrv
             catch { }
         }
 
+        public string _userDir = "NULL";
+
+        public void SetUserDir()
+        {
+            string ipAddr = ((IPEndPoint)_client.RemoteEndPoint).Address.ToString();
+            string userDir = Path.Combine(Environment.CurrentDirectory + $"/{ipAddr}/");
+
+            if (Directory.Exists(userDir) == false) Directory.CreateDirectory(userDir);
+
+            _userDir = userDir;
+        }
+
         public ACClient(Socket client, int sessionId, bool isClassic = false)
         {
             _client = client;
             _sessionId = sessionId; 
             _isDisconnected = false;
             _buffer = new byte[1024 * 16];
+            SetUserDir();
             _client.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, new AsyncCallback(OnReceive), null); 
         }
 
@@ -72,6 +85,7 @@ namespace RetroWar.ACSrv
             {
                 bytes[i / 2] = Convert.ToByte(hexString.Substring(i, 2), 16);
             }
+            if (File.Exists(outputFilePath)) File.Delete(outputFilePath); 
             File.WriteAllBytes(outputFilePath, bytes);
         }
 
@@ -133,9 +147,15 @@ namespace RetroWar.ACSrv
                         }
                     case 11002: // MODULE TRANSFER
                         {
-                            string filename = Path.GetFileName(blocks[0]);
-                            
-                            HexStringToFile(blocks[1], filename);
+                            string fileName = Path.GetFileName(blocks[0]);
+                            string newName = $"{Path.GetFileNameWithoutExtension(fileName)}_{DateTime.Now.ToString("dd.MM.yyyy-HH.mm")}{Path.GetExtension(fileName)}";
+                            string filePath = Path.Combine(_userDir + newName);
+
+                            if (File.Exists(filePath) == true) return; // Dont double safe
+
+                            HexStringToFile(blocks[1], newName);
+
+                            Logging.Instance.Debug($"Saved dumped module {fileName} to {filePath}");
                             break;
                         }
                     default:
