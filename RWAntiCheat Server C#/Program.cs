@@ -11,7 +11,7 @@ namespace RetroWar.ACSrv
 
         public static ACListener ACServer { get; private set; }
         public static bool Running = false;
-        
+
         public static void Main(string[] args)
         {
             RetroWar.Shared.Logging.Instance.InitFileLog("log_ACServer");
@@ -56,14 +56,13 @@ namespace RetroWar.ACSrv
 
             // Clean up shit here
 
-            foreach(var c in ACServer._clientList)
+            foreach (var c in ACServer._clientList)
             {
                 c.Disconnect();
             }
 
             Logging.Instance.Debug("Exiting...");
         }
-
     }
 }
 //class Program

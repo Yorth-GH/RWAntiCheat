@@ -8,7 +8,9 @@ BOOL socketClient::IsActive = FALSE;
 bool socketClient::Connect(ULONG ip, USHORT port)
 {
 	WSADATA wsa_data;
+
 	SOCKADDR_IN addr;
+
 	int result = 0;
 
 	result = WSAStartup(MAKEWORD(2, 0), &wsa_data);
@@ -20,6 +22,7 @@ bool socketClient::Connect(ULONG ip, USHORT port)
 	addr.sin_addr.s_addr = ip;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
+
 
 	result = connect(connection, reinterpret_cast<SOCKADDR*>(&addr), sizeof(addr));
 	if (result == SOCKET_ERROR)

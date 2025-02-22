@@ -64,7 +64,17 @@ namespace RetroWar.ACSrv
         //    packet.AddBlock((int)err);
         //    Send(packet);
         //}
-          
+
+        public static void HexStringToFile(string hexString, string outputFilePath)
+        {
+            byte[] bytes = new byte[hexString.Length / 2];
+            for (int i = 0; i < hexString.Length; i += 2)
+            {
+                bytes[i / 2] = Convert.ToByte(hexString.Substring(i, 2), 16);
+            }
+            File.WriteAllBytes(outputFilePath, bytes);
+        }
+
         private void ProcessMsg(byte[] data)
         {
             try
@@ -76,6 +86,7 @@ namespace RetroWar.ACSrv
 
                 var blocks = new string[packet.Length - 2];
                 Array.Copy(packet, 2, blocks, 0, blocks.Length);
+               
 
                 switch (opCode)
                 {
@@ -84,6 +95,47 @@ namespace RetroWar.ACSrv
                             var username = blocks[2].Replace('\x1D', ' ').Trim();
                             var password = blocks[3].Replace('\x1D', ' ').Trim();
                              
+                            break;
+                        }
+                    case 11001: // AC REPORT
+                        {
+                            var blocks2 = new string[packet.Length - 3];
+                            Array.Copy(blocks, 1, blocks2, 0, blocks2.Length);
+                            switch (blocks[0])
+                            {
+                                case "7":
+                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2) + " SENDING TO SERVER!");
+                                break;
+                                case "6":
+                                    Logging.Instance.Debug("AC REPORT - Connection to server closing!");
+                                break;
+                                case "5":
+                                    Logging.Instance.Debug("AC REPORT - Heartbeat callback! " + string.Join(" ", blocks2));
+                                break;
+                                case "4":
+                                    Logging.Instance.Debug("AC REPORT - Unknown module: " + string.Join(" ", blocks2));
+                                break;
+                                case "3":
+                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                break;
+                                case "2":
+                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                break;
+                                case "1":
+                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                break;
+                                case "0":
+                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                break;
+                            }
+                             
+                            break;
+                        }
+                    case 11002: // MODULE TRANSFER
+                        {
+                            string filename = Path.GetFileName(blocks[0]);
+                            
+                            HexStringToFile(blocks[1], filename);
                             break;
                         }
                     default:
@@ -112,9 +164,12 @@ namespace RetroWar.ACSrv
                     for (int i = 0; i < length; i++)
                         _packetCache.Add((byte)(_buffer[i]));
 
+                    if (_buffer[length-1] != '\n')
+                        _client.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, new AsyncCallback(OnReceive), null);
+
                     int startIndex = 0;
                     for (int i = 0; i < _packetCache.Count; i++)
-                    {
+                    {   
                         if (_packetCache[i] == (byte)'\n')
                         {
                             byte[] packetBuffer = new byte[i - startIndex];

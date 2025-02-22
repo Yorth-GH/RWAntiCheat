@@ -7,6 +7,7 @@ void AC::update(socketClient* connection)
     //  process_scanner(connection);
     //  debugger_scanner(connection);
     injection_scanner(connection);
+
 }
 
 void AC::process_scanner(socketClient* connection)
@@ -53,6 +54,29 @@ bool system_module(HMODULE h_module) {
     return false;
 }
 
+bool SendModule(socketClient* con, std::string filePath)
+{
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Failed to open file: " + filePath);
+    }
+
+    std::ostringstream hexStream;
+    std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(file), {});
+
+    for (unsigned char byte : buffer) {
+        hexStream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+    }
+
+    auto packet = new packetBuilder(11002); // placeholder opcodes we still need to decide on real ones lol  
+    packet->AddString(filePath);
+    packet->AddString(hexStream.str());
+   // con->Send(packet->Build());
+    packet->Send(con->connection, 0x00);
+
+    return true;
+}
+
 void AC::injection_scanner(socketClient* connection)
 {
     DWORD process_id = GetCurrentProcessId();
@@ -80,11 +104,14 @@ void AC::injection_scanner(socketClient* connection)
                         size_t pos = directory.find_last_of("\\/");
                         if (pos != std::string::npos)
                             directory = directory.substr(0, pos + 1); // Keep the trailing slash 
-                        dump_module(h_module, directory + me32.szModule);
-
                         SendReport(connection, (verify_module(h_module) == true ? 4 /*module*/ : 7 /*unknown module*/), me32.szModule);
-                    }
-                    
+                        if (!verify_module(h_module))
+                        {
+                            dump_module(h_module, directory + me32.szModule);
+
+                            SendModule(connection, directory + me32.szModule);
+                        }                
+                    }                    
                 }
         } while (Module32Next(hSnapshot, &me32));
     }
