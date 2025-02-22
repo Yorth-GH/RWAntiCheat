@@ -30,10 +30,12 @@
 #include <SoftPub.h>
 #include <wininet.h>
 #include <iomanip>
-
+ 
 #include "Networking/packetBuilder.h"
 #include "Networking/packetReader.h"
 #include "Networking/socketClient.h"
+
+#include "wrClient.h"
 
 #include "RunTime/antiCheat.h"
 

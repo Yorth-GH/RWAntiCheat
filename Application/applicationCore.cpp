@@ -11,6 +11,13 @@ void applicationCore::Initialize(socketClient* connection)
 		return;
 	} 
 
+	wrClient::HookNetwork();
+	if (wrClient::isHooked == false)
+	{
+		ExitProcess(0);
+		return;
+	}
+
 	// Send Handshake
 }
 

@@ -27,6 +27,9 @@
     <ClCompile Include="Application\applicationCore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="wrClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RunTime\antiCheat.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Application\applicationCore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wrClient.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
