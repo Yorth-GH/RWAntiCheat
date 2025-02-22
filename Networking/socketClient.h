@@ -10,14 +10,14 @@ public:
 	static void Send(std::string buffer);
 
 	static void Handle(std::string packet); 
+	
+	static std::vector<int> HandshakeTokens;
+	static int TokenCount;
 
-	static void SetUserId(int i) { userId = i; }
-
-	static DWORD WINAPI RecvData(LPVOID arg); 
+	static DWORD WINAPI RecvData(LPVOID arg);
+	static DWORD WINAPI HandshakeThread(LPVOID arg);
 
 	static BOOL IsActive;
-private:
-	static int userId;
-
+private:  
 	static std::string recvBuffer;
 };

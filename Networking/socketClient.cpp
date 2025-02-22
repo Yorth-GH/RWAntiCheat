@@ -2,8 +2,9 @@
 
 SOCKET socketClient::connection = NULL;
 std::string socketClient::recvBuffer = "";
-int socketClient::userId = -1;
+std::vector<int> socketClient::HandshakeTokens;
 BOOL socketClient::IsActive = FALSE;
+INT socketClient::TokenCount = 0;
 
 bool socketClient::Connect(ULONG ip, USHORT port)
 {
@@ -22,8 +23,7 @@ bool socketClient::Connect(ULONG ip, USHORT port)
 	addr.sin_addr.s_addr = ip;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-
-
+	 
 	result = connect(connection, reinterpret_cast<SOCKADDR*>(&addr), sizeof(addr));
 	if (result == SOCKET_ERROR)
 	{
@@ -34,7 +34,6 @@ bool socketClient::Connect(ULONG ip, USHORT port)
 	std::cout << "[AC] Connected to AC server!" << std::endl;
 
 	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)RecvData, 0, 0, 0);
-	//CreateThread(0, 0, (LPTHREAD_START_ROUTINE)CallbackThread, 0, 0, 0);
 
 	return true;
 }
@@ -59,6 +58,19 @@ void socketClient::Handle(std::string packet)
 	{
 		switch (p->OpCode)
 		{
+			case 11005:	// key ex
+			{
+				int key = (p->GetInt(0) + 44) + (p->GetInt(1) - 7);
+				auto seededGen = new SeededGenerator(key);
+				HandshakeTokens = seededGen->generateSequence(1024);
+				CreateThread(0, 0, (LPTHREAD_START_ROUTINE)HandshakeThread, 0, 0, 0);
+				break;
+			}
+			case 11010: // heartbeat
+			{
+				// do nothing
+				break;
+			}
 			case 15001: // ACK_LOGIN
 			{
 				int code = p->GetInt(0);
@@ -122,5 +134,21 @@ DWORD __stdcall socketClient::RecvData(LPVOID arg)
 			break;
 	}
 	Close();
+	return 0;
+}
+
+DWORD __stdcall socketClient::HandshakeThread(LPVOID arg)
+{
+	while (IsActive)
+	{
+		Sleep(30000);
+
+		auto builder = new packetBuilder(11010);
+		builder->AddInt(rand() % 100000);
+		builder->AddInt(HandshakeTokens[TokenCount]);
+		builder->Send(connection, 0x00);
+
+		TokenCount++;
+	}
 	return 0;
 }

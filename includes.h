@@ -31,6 +31,8 @@
 #include <wininet.h>
 #include <iomanip>
  
+#include "seededGen.h"
+
 #include "Networking/packetBuilder.h"
 #include "Networking/packetReader.h"
 #include "Networking/socketClient.h"

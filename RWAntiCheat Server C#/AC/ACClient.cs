@@ -1,4 +1,5 @@
-﻿using RetroWar.Shared;
+﻿using RetroWar.Game;
+using RetroWar.Shared;
 using System.Net;
 using System.Net.Sockets;
 
@@ -17,7 +18,7 @@ namespace RetroWar.ACSrv
         public int _userId = -1;
         public int _rank = -1;
         public int _serverId = -1;
-
+         
         public void Disconnect()
         {
             if (_isDisconnected) return;
@@ -42,6 +43,25 @@ namespace RetroWar.ACSrv
             _userDir = userDir;
         }
 
+
+        public List<int> _handshakeTokens = new List<int>();
+        public int _tokenCount = 0;
+
+        public void SetTokenBook()
+        {
+            int seedOne = RetroWar.Shared.Random.Next(1000, 9999);
+            int seedTwo = RetroWar.Shared.Random.Next(100, 999999);
+
+            var builder = new Packet(11005, Packet.E_PACKETTYPE.Text);
+            builder.AddBlock(seedOne);
+            builder.AddBlock(seedTwo);
+            Send(builder);
+
+            int seed = (seedOne + 44) + (seedTwo - 7);
+            var seededGen = new SeededGenerator(seed);
+            _handshakeTokens = seededGen.GenerateSequence(1024);
+        }
+
         public ACClient(Socket client, int sessionId, bool isClassic = false)
         {
             _client = client;
@@ -49,7 +69,8 @@ namespace RetroWar.ACSrv
             _isDisconnected = false;
             _buffer = new byte[1024 * 16];
             SetUserDir();
-            _client.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, new AsyncCallback(OnReceive), null); 
+            _client.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, new AsyncCallback(OnReceive), null);
+            SetTokenBook();
         }
 
         public void Send(RetroWar.Game.Packet p)
@@ -156,6 +177,23 @@ namespace RetroWar.ACSrv
                             HexStringToFile(blocks[1], newName);
 
                             Logging.Instance.Debug($"Saved dumped module {fileName} to {filePath}");
+                            break;
+                        }
+                    case 11010:
+                        {
+                            int random = int.Parse(blocks[0]);
+                            int token = int.Parse(blocks[1]);
+
+                            if(token != _handshakeTokens[_tokenCount])
+                            {
+                                Logging.Instance.Error("Token mismatch!");
+                            }
+
+                            _tokenCount++;
+
+                            var builder = new Packet(11010);
+                            builder.AddBlock(1);
+                            Send(builder);
                             break;
                         }
                     default:

@@ -146,6 +146,7 @@
     <ClCompile Include="RunTime\antiCheat.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Networking\socketClient.cpp" />
+    <ClCompile Include="seededGen.cpp" />
     <ClCompile Include="wrClient.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -155,6 +156,7 @@
     <ClInclude Include="Networking\packetBuilder.h" />
     <ClInclude Include="Networking\packetReader.h" />
     <ClInclude Include="Networking\socketClient.h" />
+    <ClInclude Include="seededGen.h" />
     <ClInclude Include="wrClient.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
