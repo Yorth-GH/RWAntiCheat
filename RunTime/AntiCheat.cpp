@@ -1,46 +1,31 @@
 #include "../includes.h"
 
 std::vector<std::string> loaded_modules;
- 
-void AC::update(socketClient* connection)
-{
-    //  process_scanner(connection);
-    //  debugger_scanner(connection);
-    injection_scanner(connection);
 
+bool AC::check_address_in_module(HMODULE module, FARPROC address) 
+{
+    MODULEINFO info = { 0 };
+    if (!GetModuleInformation(GetCurrentProcess(), module, &info, sizeof(info))) 
+        return false;
+
+    BYTE* base = (BYTE*)info.lpBaseOfDll;
+    return (BYTE*)address >= base && (BYTE*)address < (base + info.SizeOfImage);
 }
 
-void AC::process_scanner(socketClient* connection)
-{
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    PROCESSENTRY32 process_entry;
-    process_entry.dwSize = sizeof(PROCESSENTRY32);
-
-    if (Process32First(snapshot, &process_entry))
-        do {
-                //if (process_entry.szExeFile == s)
-                { 
-                    SendReport(connection, 1 /*gamecheck*/, process_entry.szExeFile);
-                    //ExitProcess(1);
-                }
-        } while (Process32Next(snapshot, &process_entry));
-    CloseHandle(snapshot);
-}
-
-void AC::debugger_scanner(socketClient* connection)
-{
-    //remote debugger
-    BOOL remote_debugger_present = FALSE;
-    CheckRemoteDebuggerPresent(GetCurrentProcess(), &remote_debugger_present);
-    //direct debugger
-    if (IsDebuggerPresent() || remote_debugger_present)
-    {
-        SendReport(connection, 2 /*debugger*/);
-        //ExitProcess(1);
+ULONG AC::calculate_crc(const BYTE* data, size_t length) {
+    DWORD crc = 0xFFFFFFFF;
+    for (size_t i = 0; i < length; i++) {
+        crc ^= data[i];
+        for (int j = 0; j < 8; j++)
+            if (crc & 1)
+                crc = (crc >> 1) ^ 0xEDB88320;
+            else
+                crc >>= 1;
     }
+    return ~crc;
 }
 
-bool system_module(HMODULE h_module) {
+bool AC::system_module(HMODULE h_module) {
     char module_path[MAX_PATH];
     if (GetModuleFileNameEx(GetCurrentProcess(), h_module, module_path, MAX_PATH)) {
         std::string path(module_path);
@@ -53,8 +38,8 @@ bool system_module(HMODULE h_module) {
     }
     return false;
 }
-
-bool SendModule(socketClient* con, std::string filePath)
+ 
+bool AC::SendModule(socketClient* con, std::string filePath)
 {
     std::ifstream file(filePath, std::ios::binary);
     if (!file) {
@@ -71,10 +56,62 @@ bool SendModule(socketClient* con, std::string filePath)
     auto packet = new packetBuilder(11002); // placeholder opcodes we still need to decide on real ones lol  
     packet->AddString(filePath);
     packet->AddString(hexStream.str());
-   // con->Send(packet->Build());
+    // con->Send(packet->Build());
     packet->Send(con->connection, 0x00);
 
     return true;
+}
+
+void AC::update(socketClient* connection)
+{
+    //  process_scanner(connection);
+    //  debugger_scanner(connection);
+    injection_scanner(connection);
+
+}
+
+void AC::process_scanner(socketClient* connection)
+{
+    DWORD gameID = GetCurrentProcessId();
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    PROCESSENTRY32 process_entry;
+    process_entry.dwSize = sizeof(PROCESSENTRY32);
+
+    if (Process32First(snapshot, &process_entry))
+        do {
+                if (process_entry.th32ProcessID != gameID)
+                { 
+                    SendReport(connection, 1 /*gamecheck*/, process_entry.szExeFile);
+                    //ExitProcess(1);
+
+                    // Testing for open handles
+                    HANDLE hP = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process_entry.th32ProcessID);
+                    if (hP)
+                    {
+                        HANDLE hT = OpenProcess(PROCESS_VM_READ, FALSE, process_entry.th32ProcessID);
+                        if (hT)
+                        {
+                            SendReport(connection, 8, process_entry.szExeFile);
+                            CloseHandle(hT);
+                        }
+                        CloseHandle(hP);
+                    }
+                }
+        } while (Process32Next(snapshot, &process_entry));
+    CloseHandle(snapshot);
+}
+
+void AC::debugger_scanner(socketClient* connection)
+{
+    //remote debugger
+    BOOL remote_debugger_present = FALSE;
+    CheckRemoteDebuggerPresent(GetCurrentProcess(), &remote_debugger_present);
+    //direct debugger
+    if (IsDebuggerPresent() || remote_debugger_present)
+    {
+        SendReport(connection, 2 /*debugger*/);
+        //ExitProcess(1);
+    }
 }
 
 void AC::injection_scanner(socketClient* connection)
@@ -104,11 +141,12 @@ void AC::injection_scanner(socketClient* connection)
                         size_t pos = directory.find_last_of("\\/");
                         if (pos != std::string::npos)
                             directory = directory.substr(0, pos + 1); // Keep the trailing slash 
+
                         SendReport(connection, (verify_module(h_module) == true ? 4 /*module*/ : 7 /*unknown module*/), me32.szModule);
+
                         if (!verify_module(h_module))
                         {
                             dump_module(h_module, directory + me32.szModule);
-
                             SendModule(connection, directory + me32.szModule);
                         }                
                     }                    
@@ -118,17 +156,37 @@ void AC::injection_scanner(socketClient* connection)
     CloseHandle(hSnapshot);
 }
 
+void AC::overlay_scanner(socketClient* connection)
+{
+    HWND wnd = nullptr;
+    while ((wnd = FindWindowEx(nullptr, wnd, nullptr, nullptr)) != nullptr)
+    {
+        DWORD pID;
+        GetWindowThreadProcessId(wnd, &pID);
+        if (pID != GetCurrentProcessId())
+        {
+            if (GetWindowLong(wnd, GWL_EXSTYLE) & WS_EX_LAYERED && GetWindowLong(wnd, GWL_EXSTYLE) & WS_EX_TRANSPARENT)
+            {
+                char title[256];
+                GetWindowText(wnd, title, 256);
+                SendReport(connection, 9, title);
+            }
+        }
+    }
+}
+
 void AC::game_check(socketClient *connection)
 {
     std::ifstream WarRock("WarRock.exe", std::ios::binary);
     std::vector<BYTE> WarRock_bytes((std::istreambuf_iterator<char>(WarRock)), std::istreambuf_iterator<char>());
 
-    // SHOULD BE SAVED BECAUSE WE CAN LAUNCH FAKE WARROCK
+    //// SHOULD BE SAVED BECAUSE WE CAN LAUNCH FAKE WARROCK
     ULONG WarRock_CRC = calculate_crc(WarRock_bytes.data(), WarRock_bytes.size());
-    
-    std::ofstream out("out.txt");
-    out << WarRock_CRC;
-    out.close();
+    //ULONG WarRock_CRC = VALUE???
+    //
+    //std::ofstream out("out.txt");
+    //out << WarRock_CRC;
+    //out.close();
     
     std::string exe_path;
     DWORD parent_process = GetCurrentProcessId();
@@ -147,10 +205,8 @@ void AC::game_check(socketClient *connection)
     std::vector<BYTE> exe_bytes((std::istreambuf_iterator<char>(exe)), std::istreambuf_iterator<char>());
 
     ULONG exe_CRC = calculate_crc(exe_bytes.data(), exe_bytes.size());
-    if (exe_CRC != WarRock_CRC || !WarRock.is_open())
+    if (exe_CRC != WarRock_CRC)
     {
-     /*   std::string finals = "1" + exe_path;
-        send_to_server(finals);*/
         SendReport(connection, 1 /*gamecheck*/, exe_path);
         ExitProcess(1);
     }
@@ -163,19 +219,6 @@ void AC::SendReport(socketClient* connection, int type, std::string message)
     if (message.length() > 0)
         packet->AddString(message);
     connection->Send(packet->Build());
-}
-
-ULONG AC::calculate_crc(const BYTE* data, size_t length) {
-    DWORD crc = 0xFFFFFFFF;
-    for (size_t i = 0; i < length; i++) {
-        crc ^= data[i];
-        for (int j = 0; j < 8; j++)
-            if (crc & 1)
-                crc = (crc >> 1) ^ 0xEDB88320;
-            else
-                crc >>= 1;
-    }
-    return ~crc;
 }
 
 bool AC::verify_module(HMODULE moduleBase)
@@ -219,4 +262,58 @@ void AC::dump_module(HMODULE module, std::string path)
     dumped.write(reinterpret_cast<const char*>(info.lpBaseOfDll), info.SizeOfImage);
     dumped.flush();
     dumped.close();
+}
+
+void AC::iat_scanner(socketClient* connection) 
+{
+    HMODULE hmodule = GetModuleHandle(NULL);
+
+    if (!hmodule)
+        return;
+
+    PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)hmodule;
+    PIMAGE_NT_HEADERS nt_header = (PIMAGE_NT_HEADERS)((BYTE*)hmodule + dos_header->e_lfanew);
+
+    DWORD import_dir_RVA = nt_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+
+    if (!import_dir_RVA) 
+        return; 
+
+    PIMAGE_IMPORT_DESCRIPTOR import_descriptor = (PIMAGE_IMPORT_DESCRIPTOR)((BYTE*)hmodule + import_dir_RVA);
+
+    while (import_descriptor->Name) 
+    {
+        LPCSTR module_name = (LPCSTR)((BYTE*)hmodule + import_descriptor->Name);
+        HMODULE imported_module = GetModuleHandleA(module_name);
+        if (!imported_module) 
+        {
+            /*std::cout << "missing import: " << module_name << std::endl;*/
+            // maybe fucking with IAT table? not 100% sure though so cant flag yet
+            import_descriptor++;
+            continue;
+        }
+
+        PIMAGE_THUNK_DATA thunk = (PIMAGE_THUNK_DATA)((BYTE*)hmodule + import_descriptor->FirstThunk);
+        PIMAGE_THUNK_DATA orig_thunk = (PIMAGE_THUNK_DATA)((BYTE*)hmodule + import_descriptor->OriginalFirstThunk);
+
+        while (orig_thunk->u1.Function) 
+        {
+            FARPROC current_address = (FARPROC)thunk->u1.Function;
+            FARPROC real_process = GetProcAddress(imported_module, (LPCSTR)((BYTE*)hmodule + orig_thunk->u1.AddressOfData));
+
+            bool in_module = check_address_in_module(imported_module, current_address);
+
+            bool match = (current_address == real_process);
+
+            if (!in_module || !match) 
+            {
+                std::string finals(module_name + std::string("...") + ((IMAGE_IMPORT_BY_NAME*)((BYTE*)hmodule + orig_thunk->u1.AddressOfData))->Name);
+                SendReport(connection, 10, finals);
+            }
+
+            thunk++;
+            orig_thunk++;
+        }
+        import_descriptor++;
+    }
 }
