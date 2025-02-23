@@ -59,5 +59,8 @@
     <ClInclude Include="seededGen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="hwInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
