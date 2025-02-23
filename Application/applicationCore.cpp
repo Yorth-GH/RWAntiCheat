@@ -10,7 +10,7 @@ void applicationCore::Initialize(socketClient* connection)
 		ExitProcess(0);
 		return;
 	} 
-
+	AC::SendReport(connection, 0);
 	wrClient::HookNetwork();
 	if (wrClient::isHooked == false)
 	{

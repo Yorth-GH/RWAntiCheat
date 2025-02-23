@@ -86,7 +86,7 @@ void AC::debugger_scanner(socketClient* connection)
     //direct debugger
     if (IsDebuggerPresent() || remote_debugger_present)
     {
-        SendReport(connection, 2 /*debugger*/);
+        SendReport(connection, 2/*debugger*/);
         //ExitProcess(1);
     }
 }
@@ -139,7 +139,7 @@ void AC::injection_scanner(socketClient* connection)
 
                             //SendModule(connection, directory + me32.szModule);
                             //SendFileToServer("127.0.0.1", 1338, me32.szModule, dumpedData);
-                            SendFileToServer("127.0.0.1", 1338, path);
+                            SendFileToServer("188.246.93.212", 1338, path);
                         }                
                     }                    
                 }

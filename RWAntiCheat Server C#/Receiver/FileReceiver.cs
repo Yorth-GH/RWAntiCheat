@@ -68,6 +68,7 @@ namespace RetroWar.ACSrv
 
                     long fileSize = reader.ReadInt32();
                     string filePath1 = Path.Combine(_baseDirectory, clientIp);
+                    Directory.CreateDirectory(filePath1);
                     string filePath = Path.Combine(filePath1, fileName);
 
                     using FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);

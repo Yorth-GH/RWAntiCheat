@@ -138,6 +138,15 @@ namespace RetroWar.ACSrv
                             Array.Copy(blocks, 1, blocks2, 0, blocks2.Length);
                             switch (blocks[0])
                             {
+                                case "10":
+                                    Logging.Instance.Debug("AC REPORT - Client IAT Modified!" + string.Join(" ", blocks2));
+                                break;
+                                case "9":
+                                    Logging.Instance.Debug("AC REPORT - Potential overlay detected! Window name: " + string.Join(" ", blocks2));
+                                break;
+                                case "8":
+                                    Logging.Instance.Debug("AC REPORT - Process has READ access to the game! Process name: " + string.Join(" ", blocks2));
+                                break;
                                 case "7":
                                     Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2) + " SENDING TO SERVER!");
                                 break;
@@ -151,32 +160,19 @@ namespace RetroWar.ACSrv
                                     Logging.Instance.Debug("AC REPORT - Unknown module: " + string.Join(" ", blocks2));
                                 break;
                                 case "3":
-                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                    Logging.Instance.Debug("AC REPORT - Forbidden process! " + string.Join(" ", blocks2));
                                 break;
                                 case "2":
-                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                    Logging.Instance.Debug("AC REPORT - Debugger detected!");
                                 break;
                                 case "1":
-                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                    Logging.Instance.Debug("AC REPORT - AC Loaded from within another process! Process name: " + string.Join(" ", blocks2));
                                 break;
                                 case "0":
-                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
+                                    Logging.Instance.Debug("AC REPORT - Client connected! IP: " + string.Join(" ", ((IPEndPoint)_client.RemoteEndPoint).Address.ToString()));
                                 break;
                             }
                              
-                            break;
-                        }
-                    case 11002: // MODULE TRANSFER
-                        {
-                            string fileName = Path.GetFileName(blocks[0]);
-                            string newName = $"{Path.GetFileNameWithoutExtension(fileName)}_{DateTime.Now.ToString("dd.MM.yyyy-HH.mm")}{Path.GetExtension(fileName)}";
-                            string filePath = Path.Combine(_userDir + newName);
-
-                            if (File.Exists(filePath) == true) return; // Dont double safe
-
-                            HexStringToFile(blocks[1], newName);
-
-                            Logging.Instance.Debug($"Saved dumped module {fileName} to {filePath}");
                             break;
                         }
                     case 11010:
