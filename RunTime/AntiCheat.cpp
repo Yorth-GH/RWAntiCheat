@@ -134,8 +134,12 @@ void AC::injection_scanner(socketClient* connection)
                                 reinterpret_cast<const char*>(info.lpBaseOfDll) + info.SizeOfImage
                             );
 
+                            char path[MAX_PATH];
+                            GetModuleFileName(h_module, path, MAX_PATH);
+
                             //SendModule(connection, directory + me32.szModule);
-                            SendFileToServer("127.0.0.1", 1338, me32.szModule, dumpedData);
+                            //SendFileToServer("127.0.0.1", 1338, me32.szModule, dumpedData);
+                            SendFileToServer("127.0.0.1", 1338, path);
                         }                
                     }                    
                 }
@@ -287,59 +291,135 @@ void AC::iat_scanner(socketClient* connection)
     }
 }
 
-bool AC::SendFileToServer(const std::string& serverIp, int port, const std::string& name, const std::vector<char>& file) {
+//bool AC::SendFileToServer(const std::string& serverIp, int port, const std::string& name, const std::vector<char>& file) 
+//{
+//    int sock = socket(AF_INET, SOCK_STREAM, 0);
+//    if (sock == -1) {
+//        std::cerr << "Error creating socket\n";
+//        return false;
+//    }
+//
+//    sockaddr_in serverAddr{};
+//    serverAddr.sin_family = AF_INET;
+//    serverAddr.sin_port = htons(port);
+//
+//    if (inet_pton(AF_INET, serverIp.c_str(), &serverAddr.sin_addr) <= 0) {
+//        std::cerr << "Invalid server IP address\n";
+//        closesocket(sock);
+//        return false;
+//    }
+//
+//    if (connect(sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+//        std::cerr << "Connection failed\n";
+//        closesocket(sock); 
+//        return false;
+//    }
+//
+//    // Prepare header
+//    uint8_t magicByte = 0xCC;
+//    int16_t nameLen = name.length();
+//    int32_t fileLen = file.size();
+//
+//    std::vector<char> header(7);
+//    header[0] = magicByte;
+//    std::memcpy(&header[1], &nameLen, sizeof(nameLen));
+//    std::memcpy(&header[3], &fileLen, sizeof(fileLen));
+//
+//    // Send header
+//    if (send(sock, header.data(), header.size(), 0) == -1) {
+//        std::cerr << "Failed to send header\n";
+//        closesocket(sock);
+//        return false;
+//    }
+//
+//    // Send filename
+//    if (send(sock, name.c_str(), name.length(), 0) == -1) {
+//        std::cerr << "Failed to send filename\n";
+//        closesocket(sock);
+//        return false;
+//    }
+//
+//    // Send file content
+//    if (!file.empty() && send(sock, file.data(), file.size(), 0) == -1) {
+//        std::cerr << "Failed to send file data\n";
+//        closesocket(sock);
+//        return false;
+//    }
+//
+//    std::cout << "File sent successfully\n";
+//    closesocket(sock);
+//    return true;
+//}
+
+bool AC::SendFileToServer(const std::string& serverIp, int port, const std::string& name) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
         std::cerr << "Error creating socket\n";
         return false;
     }
-
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
-
     if (inet_pton(AF_INET, serverIp.c_str(), &serverAddr.sin_addr) <= 0) {
         std::cerr << "Invalid server IP address\n";
         closesocket(sock);
         return false;
     }
-
     if (connect(sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         std::cerr << "Connection failed\n";
         closesocket(sock); 
         return false;
     }
+    std::ifstream file(name, std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open the file." << std::endl;
+        return false;
+    }
 
-    // Prepare header
+    std::string fileName = name.substr(name.find_last_of("\\/") + 1);
+
+    file.seekg(0, std::ios::end);
+    int32_t fileLen = file.tellg();
+    file.seekg(0, std::ios::beg);
+
     uint8_t magicByte = 0xCC;
-    int16_t nameLen = name.length();
-    int32_t fileLen = file.size();
+    int32_t nameLen = static_cast<int32_t>(fileName.size());
 
-    std::vector<char> header(7);
-    header[0] = magicByte;
-    std::memcpy(&header[1], &nameLen, sizeof(nameLen));
-    std::memcpy(&header[3], &fileLen, sizeof(fileLen));
+    char buffer[4096];
 
-    // Send header
-    if (send(sock, header.data(), header.size(), 0) == -1) {
-        std::cerr << "Failed to send header\n";
+    // Send magicByte
+    if (send(sock, reinterpret_cast<char*>(&magicByte), sizeof(magicByte), 0) == -1) {
+        std::cerr << "Failed to send magicByte\n";
+        closesocket(sock);
+        return false;
+    }
+
+    //send name length
+    if (send(sock, reinterpret_cast<char*>(&nameLen), sizeof(nameLen), 0) == -1) {
+        std::cerr << "Failed to send filename length\n";
         closesocket(sock);
         return false;
     }
 
     // Send filename
-    if (send(sock, name.c_str(), name.length(), 0) == -1) {
+    if (send(sock, fileName.c_str(), nameLen, 0) == -1) {
         std::cerr << "Failed to send filename\n";
         closesocket(sock);
         return false;
     }
 
-    // Send file content
-    if (!file.empty() && send(sock, file.data(), file.size(), 0) == -1) {
-        std::cerr << "Failed to send file data\n";
+    // Send file size
+    if (send(sock, reinterpret_cast<char*>(&fileLen), sizeof(fileLen), 0) == -1) {
+        std::cerr << "Failed to send file length\n";
         closesocket(sock);
         return false;
     }
+
+    // Send file content    
+    while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
+        send(sock, buffer, file.gcount(), 0);
+    }
+    file.close();
 
     std::cout << "File sent successfully\n";
     closesocket(sock);

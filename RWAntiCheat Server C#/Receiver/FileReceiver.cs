@@ -53,33 +53,41 @@ namespace RetroWar.ACSrv
             {
                 try
                 {
-                    byte[] header = new byte[7]; // 1 byte magicByte + 2 bytes nameLen + 4 bytes fileLen
-                    networkStream.Read(header, 0, header.Length);
+                    //magic byte
+                    using BinaryReader reader = new BinaryReader(networkStream);
+                    byte magic = reader.ReadByte();
 
-                    if (header[0] != 0xCC)
+                    if (magic != 0xCC)
                     {
                         Logging.Instance.Debug("Invalid magic byte received, ignoring request.");
                         return;
                     }
 
-                    short nameLen = BitConverter.ToInt16(header, 1);
-                    int fileLen = BitConverter.ToInt32(header, 3);
+                    int fileNameLength = reader.ReadInt32();
+                    string fileName = new string(reader.ReadChars(fileNameLength));
 
-                    byte[] dataBuffer = new byte[nameLen + fileLen];
-                    networkStream.Read(dataBuffer, 0, dataBuffer.Length);
+                    long fileSize = reader.ReadInt32();
+                    string filePath1 = Path.Combine(_baseDirectory, clientIp);
+                    string filePath = Path.Combine(filePath1, fileName);
 
-                    string fileName = Encoding.UTF8.GetString(dataBuffer, 0, nameLen);
-                    byte[] fileContent = new byte[fileLen];
-                    Array.Copy(dataBuffer, nameLen, fileContent, 0, fileLen);
+                    using FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
 
-                    FileData fileData = new FileData { Name = fileName, File = fileContent };
+                    byte[] buffer = new byte[4096];
+                    long bytesReceived = 0;
 
-                    string clientFolder = Path.Combine(_baseDirectory, clientIp);
-                    Directory.CreateDirectory(clientFolder);
-                    string filePath = Path.Combine(clientFolder, fileData.Name);
+                    while (bytesReceived < fileSize)
+                    {
+                        int bytesToRead = (int)Math.Min(buffer.Length, fileSize - bytesReceived);
+                        int bytesRead = networkStream.Read(buffer, 0, bytesToRead);
+                        if (bytesRead == 0) 
+                            break; // Connection closed unexpectedly
 
-                    File.WriteAllBytes(filePath, fileData.File);
-                    Logging.Instance.Success($"File received from {clientIp}: {fileData.Name}");
+                        fs.Write(buffer, 0, bytesRead);
+                        bytesReceived += bytesRead;
+                    }
+
+                    Logging.Instance.Debug($"File {fileName} received!");
+
                 }
                 catch (Exception ex)
                 {
