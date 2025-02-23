@@ -68,7 +68,15 @@ void socketClient::Handle(std::string packet)
 			}
 			case 11010: // heartbeat
 			{
-				// do nothing
+				// on successful heartbeat / after validated by server -> send it to GS
+
+				if (wrClient::gameServerSocket == NULL) return;
+				if (wrClient::isOnGameServer == false) return;
+				auto gsHeartbeat = new packetBuilder(25115); // unused wr opc 
+				gsHeartbeat->AddInt(2); // subtype 2 heartbeat?
+				gsHeartbeat->AddInt(HandshakeTokens[TokenCount - 1]); // last token
+				gsHeartbeat->Send(wrClient::gameServerSocket, 0xC3); 
+
 				break;
 			}
 			case 15001: // ACK_LOGIN

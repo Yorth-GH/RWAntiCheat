@@ -26,6 +26,12 @@ void wrClient::HandleServerPacket(packetReader* packet)
 
 			userId = packet->GetInt(3);
 			nickname = packet->GetString(5);
+
+			auto gsHandshake = new packetBuilder(25115); // unused wr opc 
+			gsHandshake->AddInt(1); // subtype 1 handshake?
+			gsHandshake->AddString("+++HWID+++"); // unique identifier ?
+			gsHandshake->Send(gameServerSocket, 0xC3);
+			// i add this so the wr game server also knows the client has AC running
 		}
 	}
 
