@@ -39,29 +39,6 @@ bool AC::system_module(HMODULE h_module) {
     return false;
 }
  
-bool AC::SendModule(socketClient* con, std::string filePath)
-{
-    std::ifstream file(filePath, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Failed to open file: " + filePath);
-    }
-
-    std::ostringstream hexStream;
-    std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(file), {});
-
-    for (unsigned char byte : buffer) {
-        hexStream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
-    }
-
-    auto packet = new packetBuilder(11002); // placeholder opcodes we still need to decide on real ones lol  
-    packet->AddString(filePath);
-    packet->AddString(hexStream.str());
-    // con->Send(packet->Build());
-    packet->Send(con->connection, 0x00);
-
-    return true;
-}
-
 void AC::update(socketClient* connection)
 {
     //  process_scanner(connection);
@@ -254,25 +231,6 @@ bool AC::verify_module(HMODULE moduleBase)
 
     // If the security directory is present and non-zero, the file is signed
     return (securityDir.VirtualAddress != 0 && securityDir.Size != 0);
-}
-
-void AC::dump_module(HMODULE module, std::string path)
-{
-    MODULEINFO info = { 0 };
-    GetModuleInformation(GetCurrentProcess(), module, &info, sizeof(info));
-
-    if (info.lpBaseOfDll == nullptr || info.SizeOfImage == 0)
-        return;
-    // there is a chance its manually mapped, will find out how to detect and dump
-
-    std::ofstream dumped(path, std::ios::binary);
-    if (!dumped.is_open()) {
-        std::cerr << "Failed to open file: " << path << std::endl;
-        return;
-    }
-    dumped.write(reinterpret_cast<const char*>(info.lpBaseOfDll), info.SizeOfImage);
-    dumped.flush();
-    dumped.close();
 }
 
 void AC::iat_scanner(socketClient* connection) 
