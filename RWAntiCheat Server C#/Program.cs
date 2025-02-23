@@ -10,6 +10,7 @@ namespace RetroWar.ACSrv
         public static RetroWar.MySql.Database byGamersDB;
 
         public static ACListener ACServer { get; private set; }
+        public static FileReceiver Receiver { get; private set; }
         public static bool Running = false;
 
         public static void Main(string[] args)
@@ -46,6 +47,9 @@ namespace RetroWar.ACSrv
                 Logging.Instance.Error("Failed to start Anti cheat server on port 1337!");
                 return;
             }
+
+            Receiver = new FileReceiver(1338);
+            Receiver.Start();
 
             Running = true;
 
