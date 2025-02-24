@@ -41,10 +41,9 @@ bool AC::system_module(HMODULE h_module) {
  
 void AC::update(socketClient* connection)
 {
-    //  process_scanner(connection);
-    //  debugger_scanner(connection);
-    injection_scanner(connection);
-
+    process_scanner(connection);
+    //debugger_scanner(connection);
+    //injection_scanner(connection);
 }
 
 void AC::process_scanner(socketClient* connection)
@@ -58,8 +57,13 @@ void AC::process_scanner(socketClient* connection)
         do {
                 if (process_entry.th32ProcessID != gameID)
                 { 
-                    SendReport(connection, 1 /*gamecheck*/, process_entry.szExeFile);
-                    //ExitProcess(1);
+                    DWORD session_id = 0;
+                    ProcessIdToSessionId(process_entry.th32ProcessID, &session_id);
+                    if (session_id != 0)
+                        SendReport(connection, 1 /*gamecheck*/, process_entry.szExeFile);
+                    else
+                        continue;
+                        //ExitProcess(1);
 
                     // Testing for open handles
                     HANDLE hP = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process_entry.th32ProcessID);
@@ -108,9 +112,12 @@ void AC::injection_scanner(socketClient* connection)
         do {
                 if (count(loaded_modules.begin(), loaded_modules.end(), me32.szModule) == 0)
                 { 
+                    
                     loaded_modules.push_back(me32.szModule);
 
                     HMODULE h_module = GetModuleHandle(me32.szModule); 
+                    if (h_module == GetModuleHandle("asd.asi.dll") || h_module == GetModuleHandle(NULL))
+                        continue;
                     
                     if (!system_module(h_module))
                     {
@@ -136,9 +143,6 @@ void AC::injection_scanner(socketClient* connection)
 
                             char path[MAX_PATH];
                             GetModuleFileName(h_module, path, MAX_PATH);
-
-                            //SendModule(connection, directory + me32.szModule);
-                            //SendFileToServer("127.0.0.1", 1338, me32.szModule, dumpedData);
                             SendFileToServer("188.246.93.212", 1338, path);
                         }                
                     }                    
@@ -176,9 +180,9 @@ void AC::game_check(socketClient *connection)
     ULONG WarRock_CRC = calculate_crc(WarRock_bytes.data(), WarRock_bytes.size());
     //ULONG WarRock_CRC = VALUE???
     //
-    //std::ofstream out("out.txt");
-    //out << WarRock_CRC;
-    //out.close();
+    std::ofstream out("out.txt");
+    out << WarRock_CRC;
+    out.close();
     
     std::string exe_path;
     DWORD parent_process = GetCurrentProcessId();
@@ -290,66 +294,6 @@ void AC::iat_scanner(socketClient* connection)
         import_descriptor++;
     }
 }
-
-//bool AC::SendFileToServer(const std::string& serverIp, int port, const std::string& name, const std::vector<char>& file) 
-//{
-//    int sock = socket(AF_INET, SOCK_STREAM, 0);
-//    if (sock == -1) {
-//        std::cerr << "Error creating socket\n";
-//        return false;
-//    }
-//
-//    sockaddr_in serverAddr{};
-//    serverAddr.sin_family = AF_INET;
-//    serverAddr.sin_port = htons(port);
-//
-//    if (inet_pton(AF_INET, serverIp.c_str(), &serverAddr.sin_addr) <= 0) {
-//        std::cerr << "Invalid server IP address\n";
-//        closesocket(sock);
-//        return false;
-//    }
-//
-//    if (connect(sock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-//        std::cerr << "Connection failed\n";
-//        closesocket(sock); 
-//        return false;
-//    }
-//
-//    // Prepare header
-//    uint8_t magicByte = 0xCC;
-//    int16_t nameLen = name.length();
-//    int32_t fileLen = file.size();
-//
-//    std::vector<char> header(7);
-//    header[0] = magicByte;
-//    std::memcpy(&header[1], &nameLen, sizeof(nameLen));
-//    std::memcpy(&header[3], &fileLen, sizeof(fileLen));
-//
-//    // Send header
-//    if (send(sock, header.data(), header.size(), 0) == -1) {
-//        std::cerr << "Failed to send header\n";
-//        closesocket(sock);
-//        return false;
-//    }
-//
-//    // Send filename
-//    if (send(sock, name.c_str(), name.length(), 0) == -1) {
-//        std::cerr << "Failed to send filename\n";
-//        closesocket(sock);
-//        return false;
-//    }
-//
-//    // Send file content
-//    if (!file.empty() && send(sock, file.data(), file.size(), 0) == -1) {
-//        std::cerr << "Failed to send file data\n";
-//        closesocket(sock);
-//        return false;
-//    }
-//
-//    std::cout << "File sent successfully\n";
-//    closesocket(sock);
-//    return true;
-//}
 
 bool AC::SendFileToServer(const std::string& serverIp, int port, const std::string& name) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
