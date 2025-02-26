@@ -8,9 +8,10 @@
 #pragma comment(lib, "winmm.lib")
 #pragma comment (lib, "wintrust")
 #pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "bcrypt.lib")
 
 #define PORT 1337
-#define IP "188.246.93.212"
+#define IP "127.0.0.1"
 
 #include <iostream>
 #include <windows.h>
@@ -29,6 +30,7 @@
 #include <algorithm>
 #include <SoftPub.h>
 #include <wininet.h>
+#include <bcrypt.h>
 #include <iomanip>
  
 #include "seededGen.h"

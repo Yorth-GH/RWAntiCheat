@@ -1,6 +1,7 @@
 #include "../includes.h"
 
 std::vector<std::string> loaded_modules;
+std::vector<std::string> loaded_procs;
 
 bool AC::check_address_in_module(HMODULE module, FARPROC address) 
 {
@@ -10,6 +11,51 @@ bool AC::check_address_in_module(HMODULE module, FARPROC address)
 
     BYTE* base = (BYTE*)info.lpBaseOfDll;
     return (BYTE*)address >= base && (BYTE*)address < (base + info.SizeOfImage);
+}
+
+std::string AC::hash(std::string path)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) 
+        return "";
+
+    BCRYPT_ALG_HANDLE hAlg = nullptr;
+    if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA1_ALGORITHM, nullptr, 0))) 
+        return "";
+
+    DWORD hashObjectSize = 0, dataSize = 0;
+    BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&hashObjectSize, sizeof(DWORD), &dataSize, 0);
+    std::vector<BYTE> hashObject(hashObjectSize);
+
+    BCRYPT_HASH_HANDLE hHash = nullptr;
+    if (!BCRYPT_SUCCESS(BCryptCreateHash(hAlg, &hHash, hashObject.data(), hashObjectSize, nullptr, 0, 0))) 
+    {
+        BCryptCloseAlgorithmProvider(hAlg, 0);
+        return "";
+    }
+
+    const size_t bufferSize = 4096;
+    std::vector<char> buffer(bufferSize);
+    while (file.read(buffer.data(), bufferSize) || file.gcount() > 0) 
+    {
+        if (!BCRYPT_SUCCESS(BCryptHashData(hHash, reinterpret_cast<PUCHAR>(buffer.data()), (ULONG)file.gcount(), 0))) {
+            BCryptDestroyHash(hHash);
+            BCryptCloseAlgorithmProvider(hAlg, 0);
+            return "";
+        }
+    }
+
+    BYTE hash[20]; // SHA-1 = 20 bytes
+    BCryptFinishHash(hHash, hash, sizeof(hash), 0);
+
+    BCryptDestroyHash(hHash);
+    BCryptCloseAlgorithmProvider(hAlg, 0);
+
+    std::ostringstream oss;
+    for (BYTE byte : hash)
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+
+    return oss.str();
 }
 
 ULONG AC::calculate_crc(const BYTE* data, size_t length) {
@@ -23,6 +69,16 @@ ULONG AC::calculate_crc(const BYTE* data, size_t length) {
                 crc >>= 1;
     }
     return ~crc;
+}
+
+bool AC::system_process(std::string path)
+{
+    std::string path2(path);
+    std::transform(path2.begin(), path2.end(), path2.begin(), ::tolower);
+    return (path2.find("c:\\windows\\system32\\") == 0 ||
+        path2.find("c:\\windows\\syswow64\\") == 0 ||
+        path2.find("c:\\windows\\winsxs\\") == 0 ||
+        path2.find("c:\\windows\\systemapps\\") == 0);
 }
 
 bool AC::system_module(HMODULE h_module) {
@@ -41,9 +97,12 @@ bool AC::system_module(HMODULE h_module) {
  
 void AC::update(socketClient* connection)
 {
-    process_scanner(connection);
+    //process_scanner(connection);
     //debugger_scanner(connection);
     //injection_scanner(connection);
+    game_check(connection);
+    //overlay_scanner(connection);
+    //iat_scanner(connection);
 }
 
 void AC::process_scanner(socketClient* connection)
@@ -55,29 +114,33 @@ void AC::process_scanner(socketClient* connection)
 
     if (Process32First(snapshot, &process_entry))
         do {
+            if (count(loaded_procs.begin(), loaded_procs.end(), process_entry.szExeFile) == 0)
+            {
+                loaded_procs.push_back(process_entry.szExeFile);
+
                 if (process_entry.th32ProcessID != gameID)
-                { 
+                {
                     DWORD session_id = 0;
                     ProcessIdToSessionId(process_entry.th32ProcessID, &session_id);
                     if (session_id != 0)
-                        SendReport(connection, 1 /*gamecheck*/, process_entry.szExeFile);
+                    {
+                        std::string path = "";
+                        char buff[MAX_PATH];
+                        DWORD size = MAX_PATH;
+
+                        HANDLE hP = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_entry.th32ProcessID);
+                        if (QueryFullProcessImageNameA(hP, 0, buff, &size))
+                            path = buff;
+                        CloseHandle(hP);
+                        if (system_process(path))
+                            continue;
+                        SendReport(connection, 3, process_entry.szExeFile);
+                        SendFileToServer("127.0.0.1", 1338, path);
+                    }
                     else
                         continue;
-                        //ExitProcess(1);
-
-                    // Testing for open handles
-                    HANDLE hP = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, process_entry.th32ProcessID);
-                    if (hP)
-                    {
-                        HANDLE hT = OpenProcess(PROCESS_VM_READ, FALSE, process_entry.th32ProcessID);
-                        if (hT)
-                        {
-                            SendReport(connection, 8, process_entry.szExeFile);
-                            CloseHandle(hT);
-                        }
-                        CloseHandle(hP);
-                    }
                 }
+            }
         } while (Process32Next(snapshot, &process_entry));
     CloseHandle(snapshot);
 }
@@ -91,7 +154,7 @@ void AC::debugger_scanner(socketClient* connection)
     if (IsDebuggerPresent() || remote_debugger_present)
     {
         SendReport(connection, 2/*debugger*/);
-        //ExitProcess(1);
+        ExitProcess(1);
     }
 }
 
@@ -143,7 +206,7 @@ void AC::injection_scanner(socketClient* connection)
 
                             char path[MAX_PATH];
                             GetModuleFileName(h_module, path, MAX_PATH);
-                            SendFileToServer("188.246.93.212", 1338, path);
+                            SendFileToServer("127.0.0.1", 1338, path);
                         }                
                     }                    
                 }
@@ -157,12 +220,19 @@ void AC::overlay_scanner(socketClient* connection)
     HWND wnd = nullptr;
     while ((wnd = FindWindowEx(nullptr, wnd, nullptr, nullptr)) != nullptr)
     {
+        if (!IsWindowVisible(wnd))
+            continue;
+
         DWORD pID;
         GetWindowThreadProcessId(wnd, &pID);
         if (pID != GetCurrentProcessId())
         {
             if (GetWindowLong(wnd, GWL_EXSTYLE) & WS_EX_LAYERED && GetWindowLong(wnd, GWL_EXSTYLE) & WS_EX_TRANSPARENT)
             {
+                RECT rect;
+                if (!GetWindowRect(wnd, &rect) || (rect.right - rect.left) <= 10 || (rect.bottom - rect.top) <= 10)
+                    continue;
+
                 char title[256];
                 GetWindowText(wnd, title, 256);
                 SendReport(connection, 9, title);
@@ -172,18 +242,7 @@ void AC::overlay_scanner(socketClient* connection)
 }
 
 void AC::game_check(socketClient *connection)
-{
-    std::ifstream WarRock("WarRock.exe", std::ios::binary);
-    std::vector<BYTE> WarRock_bytes((std::istreambuf_iterator<char>(WarRock)), std::istreambuf_iterator<char>());
-
-    //// SHOULD BE SAVED BECAUSE WE CAN LAUNCH FAKE WARROCK
-    ULONG WarRock_CRC = calculate_crc(WarRock_bytes.data(), WarRock_bytes.size());
-    //ULONG WarRock_CRC = VALUE???
-    //
-    std::ofstream out("out.txt");
-    out << WarRock_CRC;
-    out.close();
-    
+{   
     std::string exe_path;
     DWORD parent_process = GetCurrentProcessId();
     char path[MAX_PATH] = { 0 };
@@ -191,17 +250,15 @@ void AC::game_check(socketClient *connection)
 
     DWORD size = MAX_PATH;
     if (QueryFullProcessImageNameA(handle, 0, path, &size))
-    {
-        CloseHandle(handle);
         exe_path = std::string(path);
-    }
+
     CloseHandle(handle);
 
     std::ifstream exe(exe_path, std::ios::binary);
     std::vector<BYTE> exe_bytes((std::istreambuf_iterator<char>(exe)), std::istreambuf_iterator<char>());
 
-    ULONG exe_CRC = calculate_crc(exe_bytes.data(), exe_bytes.size());
-    if (exe_CRC != WarRock_CRC)
+    std::string exe_HASH = hash(exe_path);
+    if (exe_HASH != "ed768d9050b5ed3f0382adbe9b1bb2507179d828")
     {
         SendReport(connection, 1 /*gamecheck*/, exe_path);
         ExitProcess(1);

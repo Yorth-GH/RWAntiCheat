@@ -2,7 +2,9 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
+using System.Web;
 using RetroWar.Shared;
 
 namespace RetroWar.ACSrv
@@ -27,7 +29,7 @@ namespace RetroWar.ACSrv
 
         public void Start()
         {
-            _listener = new TcpListener(IPAddress.Any, _port);
+            _listener = new TcpListener(IPAddress.Any, _port);  
             _listener.Start();
 
             Logging.Instance.Success($"File receiver listening on port {_port}...");
@@ -42,6 +44,30 @@ namespace RetroWar.ACSrv
             })
             { Priority = ThreadPriority.AboveNormal }
             .Start();
+        }
+
+        public string hash(string path)
+        {
+            using (FileStream stream = File.OpenRead(path))
+            using (SHA1 sha1 = SHA1.Create())
+            {
+                byte[] hash = sha1.ComputeHash(stream);
+                StringBuilder sb = new StringBuilder();
+                foreach (byte b in hash)
+                    sb.Append(b.ToString("x2"));
+                return sb.ToString();
+            }
+        }
+        public string hash(FileStream stream)
+        {
+            using (SHA1 sha1 = SHA1.Create())
+            {
+                byte[] hash = sha1.ComputeHash(stream);
+                StringBuilder sb = new StringBuilder();
+                foreach (byte b in hash)
+                    sb.Append(b.ToString("x2"));
+                return sb.ToString();
+            }
         }
 
         private void HandleClient(TcpClient client)
@@ -86,6 +112,12 @@ namespace RetroWar.ACSrv
                         fs.Write(buffer, 0, bytesRead);
                         bytesReceived += bytesRead;
                     }
+                    fs.Close();
+
+                    string newPath = filePath + " " + hash(filePath);
+
+
+                    File.Move(filePath, newPath);
 
                     Logging.Instance.Debug($"File {fileName} received!");
 

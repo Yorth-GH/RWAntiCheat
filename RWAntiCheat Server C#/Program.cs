@@ -17,19 +17,19 @@ namespace RetroWar.ACSrv
         {
             RetroWar.Shared.Logging.Instance.InitFileLog("log_ACServer");
 
-            ServerConfig = new Shared.ConfigFile("ACServer.ini");
-            if (ServerConfig.Load() == false)
-            {
-                RetroWar.Shared.Logging.Instance.Error("Could not load the config file.");
-                return;
-            }
+            //ServerConfig = new Shared.ConfigFile("ACServer.ini");
+            //if (ServerConfig.Load() == false)
+            //{
+            //    RetroWar.Shared.Logging.Instance.Error("Could not load the config file.");
+            //    return;
+            //}
 
-            byGamersDB = new MySql.Database(ServerConfig.GetValue("sql_hostname"), ServerConfig.GetInt("sql_port"), ServerConfig.GetValue("sql_username"), ServerConfig.GetValue("sql_password"), ServerConfig.GetValue("sql_database"));
-            if (byGamersDB.Connect() == false)
-            {
-                RetroWar.Shared.Logging.Instance.Error("Could not connect to mysql database.");
-                return;
-            }
+            //byGamersDB = new MySql.Database(ServerConfig.GetValue("sql_hostname"), ServerConfig.GetInt("sql_port"), ServerConfig.GetValue("sql_username"), ServerConfig.GetValue("sql_password"), ServerConfig.GetValue("sql_database"));
+            //if (byGamersDB.Connect() == false)
+            //{
+            //    RetroWar.Shared.Logging.Instance.Error("Could not connect to mysql database.");
+            //    return;
+            //}
 
             //if (RetroWar.Api.Connection.Test(ServerConfig.GetValue("api_url"), ServerConfig.GetValue("api_key")) == false)
             //{

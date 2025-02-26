@@ -38,7 +38,7 @@ namespace RetroWar.ACSrv
             string ipAddr = ((IPEndPoint)_client.RemoteEndPoint).Address.ToString();
             string userDir = Path.Combine(Environment.CurrentDirectory + $"/{ipAddr}/");
 
-            if (Directory.Exists(userDir) == false) Directory.CreateDirectory(userDir);
+          //  if (Directory.Exists(userDir) == false) Directory.CreateDirectory(userDir);
 
             _userDir = userDir;
         }
@@ -148,7 +148,7 @@ namespace RetroWar.ACSrv
                                     Logging.Instance.Debug("AC REPORT - Process has READ access to the game! Process name: " + string.Join(" ", blocks2));
                                 break;
                                 case "7":
-                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2) + " SENDING TO SERVER!");
+                                    Logging.Instance.Debug("AC REPORT - Unverified module: " + string.Join(" ", blocks2));
                                 break;
                                 case "6":
                                     Logging.Instance.Debug("AC REPORT - Connection to server closing!");
@@ -160,7 +160,7 @@ namespace RetroWar.ACSrv
                                     Logging.Instance.Debug("AC REPORT - Unknown module: " + string.Join(" ", blocks2));
                                 break;
                                 case "3":
-                                    Logging.Instance.Debug("AC REPORT - Forbidden process! " + string.Join(" ", blocks2));
+                                    Logging.Instance.Debug("AC REPORT - Process open: " + string.Join(" ", blocks2));
                                 break;
                                 case "2":
                                     Logging.Instance.Debug("AC REPORT - Debugger detected!");
