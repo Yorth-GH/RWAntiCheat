@@ -97,12 +97,12 @@ bool AC::system_module(HMODULE h_module) {
  
 void AC::update(socketClient* connection)
 {
-    //process_scanner(connection);
-    //debugger_scanner(connection);
-    //injection_scanner(connection);
-    game_check(connection);
-    //overlay_scanner(connection);
-    //iat_scanner(connection);
+    process_scanner(connection);
+    debugger_scanner(connection);
+    injection_scanner(connection);
+    //game_check(connection);
+    overlay_scanner(connection);
+    iat_scanner(connection);
 }
 
 void AC::process_scanner(socketClient* connection)

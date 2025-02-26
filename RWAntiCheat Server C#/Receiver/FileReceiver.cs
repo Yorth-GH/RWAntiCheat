@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web;
+using MySqlX.XDevAPI;
 using RetroWar.Shared;
 
 namespace RetroWar.ACSrv
@@ -38,6 +39,7 @@ namespace RetroWar.ACSrv
             {
                 while (true)
                 {
+
                     var client = _listener.AcceptTcpClient();
                     HandleClient(client);
                 }
@@ -113,11 +115,28 @@ namespace RetroWar.ACSrv
                         bytesReceived += bytesRead;
                     }
                     fs.Close();
-
                     string newPath = filePath + " " + hash(filePath);
 
-
                     File.Move(filePath, newPath);
+
+                    if (newPath.Contains(".exe"))
+                    {
+                        string comp = fileName + " " + hash(newPath);
+                        if (File.ReadLines("forbidden_processes.txt").Any(line => line.Equals(comp, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            Logging.Instance.Debug($"Forbidden process found! Process name + hash: {newPath}");
+
+                        }
+                    }
+                    else if (newPath.Contains(".dll"))
+                    {
+                        string comp = fileName + " " + hash(newPath);
+                        if (!File.ReadLines("allowed_modules.txt").Any(line => line.Equals(comp, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            Logging.Instance.Debug($"Unknown module found! Module name + hash: {newPath}");
+
+                        }
+                    }
 
                     Logging.Instance.Debug($"File {fileName} received!");
 
