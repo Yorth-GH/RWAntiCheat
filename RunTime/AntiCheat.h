@@ -43,3 +43,4 @@ public:
 * 10 - IAT Detection
 * 11 - Process/Module Hash
 */
+

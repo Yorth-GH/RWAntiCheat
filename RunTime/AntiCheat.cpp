@@ -98,7 +98,7 @@ bool AC::system_module(HMODULE h_module) {
 void AC::update(socketClient* connection)
 {
     process_scanner(connection);
-    debugger_scanner(connection);
+    //debugger_scanner(connection);
     injection_scanner(connection);
     //game_check(connection);
     overlay_scanner(connection);
@@ -151,7 +151,7 @@ void AC::debugger_scanner(socketClient* connection)
     BOOL remote_debugger_present = FALSE;
     CheckRemoteDebuggerPresent(GetCurrentProcess(), &remote_debugger_present);
     //direct debugger
-    if (IsDebuggerPresent() || remote_debugger_present)
+    if (IsDebuggerPresent() || remote_debugger_present || (*(BYTE*)(__readfsdword(0x30)+2) != 0))
     {
         SendReport(connection, 2/*debugger*/);
         ExitProcess(1);
@@ -317,7 +317,14 @@ void AC::iat_scanner(socketClient* connection)
 
     while (import_descriptor->Name) 
     {
+        if (!IsBadReadPtr((BYTE*)hmodule + import_descriptor->Name, 1))
+            continue;
         LPCSTR module_name = (LPCSTR)((BYTE*)hmodule + import_descriptor->Name);
+        if (!module_name || IsBadStringPtr(module_name, MAX_PATH))
+        {
+            import_descriptor++;
+            continue;   
+        }
         HMODULE imported_module = GetModuleHandleA(module_name);
         if (!imported_module) 
         {
@@ -329,15 +336,23 @@ void AC::iat_scanner(socketClient* connection)
 
         PIMAGE_THUNK_DATA thunk = (PIMAGE_THUNK_DATA)((BYTE*)hmodule + import_descriptor->FirstThunk);
         PIMAGE_THUNK_DATA orig_thunk = (PIMAGE_THUNK_DATA)((BYTE*)hmodule + import_descriptor->OriginalFirstThunk);
+        if (!orig_thunk)
+            orig_thunk = thunk;
 
         while (orig_thunk->u1.Function) 
         {
+            if (IsBadReadPtr(thunk, sizeof(IMAGE_THUNK_DATA)) || IsBadReadPtr(orig_thunk, sizeof(IMAGE_THUNK_DATA)))
+                break;
             FARPROC current_address = (FARPROC)thunk->u1.Function;
-            FARPROC real_process = GetProcAddress(imported_module, (LPCSTR)((BYTE*)hmodule + orig_thunk->u1.AddressOfData));
+
+            if (orig_thunk->u1.Ordinal & IMAGE_ORDINAL_FLAG)
+                continue;
+
+            PIMAGE_IMPORT_BY_NAME ibn = (PIMAGE_IMPORT_BY_NAME)((BYTE*)hmodule + orig_thunk->u1.AddressOfData);
+            FARPROC real_address = GetProcAddress(imported_module, ibn->Name);
 
             bool in_module = check_address_in_module(imported_module, current_address);
-
-            bool match = (current_address == real_process);
+            bool match = (current_address == real_address);
 
             if (!in_module || !match) 
             {
@@ -426,3 +441,27 @@ bool AC::SendFileToServer(const std::string& serverIp, int port, const std::stri
     closesocket(sock);
     return true;
 }
+
+typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO {
+    USHORT ProcessId;
+    USHORT CreatorBackTraceIndex;
+    UCHAR ObjectTypeIndex;
+    UCHAR HandleAttributes;
+    USHORT HandleValue;
+    PVOID Object;
+    ULONG GrantedAccess;
+} SYSTEM_HANDLE_TABLE_ENTRY_INFO, * PSYSTEM_HANDLE_TABLE_ENTRY_INFO;
+
+typedef struct _SYSTEM_HANDLE_INFORMATION {
+    ULONG NumberOfHandles;
+    SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
+} SYSTEM_HANDLE_INFORMATION, * PSYSTEM_HANDLE_INFORMATION;
+
+extern "C" NTSTATUS NTAPI NtQuerySystemInformation(
+    ULONG SystemInformationClass,
+    PVOID SystemInformation,
+    ULONG SystemInformationLength,
+    PULONG ReturnLength
+);
+
+#define SystemHandleInformation 16

@@ -9,6 +9,7 @@
 #pragma comment (lib, "wintrust")
 #pragma comment(lib, "wininet.lib")
 #pragma comment(lib, "bcrypt.lib")
+#pragma comment(lib, "ntdll.lib")
 
 #define PORT 1337
 #define IP "127.0.0.1"
