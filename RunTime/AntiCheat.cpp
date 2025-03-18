@@ -147,11 +147,52 @@ void AC::process_scanner(socketClient* connection)
 
 void AC::debugger_scanner(socketClient* connection)
 {
+    BOOL debugger_present = FALSE;
+ 
+    //hardware debugger
+    THREADENTRY32 te32;
+    te32.dwSize = sizeof(THREADENTRY32);
+
+    HANDLE hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    DWORD procID = GetCurrentProcessId();
+
+    if (Thread32First(hsnap, &te32))
+    {
+        do {
+            if (te32.th32OwnerProcessID == procID && te32.th32ThreadID != GetCurrentThreadId())
+            {
+                HANDLE hthread = OpenThread(THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION, FALSE, te32.th32ThreadID);
+                SuspendThread(hthread);
+
+                CONTEXT context;
+                context.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+
+                if (GetThreadContext(hthread, &context))
+                {
+                    if (context.Dr0 || context.Dr1 || context.Dr2 || context.Dr3 || context.Dr6 || context.Dr7)
+                    {
+                        debugger_present = TRUE;
+                        ResumeThread(hthread);
+                        CloseHandle(hthread);
+                        CloseHandle(hsnap);
+                    }
+                }
+                else
+                {
+                    ResumeThread(hthread);
+                    CloseHandle(hthread);
+                    continue;
+                }
+                ResumeThread(hthread);
+                CloseHandle(hthread);
+            }
+        } while (Thread32Next(hsnap, &te32));
+    }
+    CloseHandle(hsnap);
     //remote debugger
-    BOOL remote_debugger_present = FALSE;
-    CheckRemoteDebuggerPresent(GetCurrentProcess(), &remote_debugger_present);
+    CheckRemoteDebuggerPresent(GetCurrentProcess(), &debugger_present);
     //direct debugger
-    if (IsDebuggerPresent() || remote_debugger_present || (*(BYTE*)(__readfsdword(0x30)+2) != 0))
+    if (IsDebuggerPresent() || debugger_present || (*(BYTE*)(__readfsdword(0x30)+2) != 0))
     {
         SendReport(connection, 2/*debugger*/);
         ExitProcess(1);
@@ -442,26 +483,3 @@ bool AC::SendFileToServer(const std::string& serverIp, int port, const std::stri
     return true;
 }
 
-typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO {
-    USHORT ProcessId;
-    USHORT CreatorBackTraceIndex;
-    UCHAR ObjectTypeIndex;
-    UCHAR HandleAttributes;
-    USHORT HandleValue;
-    PVOID Object;
-    ULONG GrantedAccess;
-} SYSTEM_HANDLE_TABLE_ENTRY_INFO, * PSYSTEM_HANDLE_TABLE_ENTRY_INFO;
-
-typedef struct _SYSTEM_HANDLE_INFORMATION {
-    ULONG NumberOfHandles;
-    SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
-} SYSTEM_HANDLE_INFORMATION, * PSYSTEM_HANDLE_INFORMATION;
-
-extern "C" NTSTATUS NTAPI NtQuerySystemInformation(
-    ULONG SystemInformationClass,
-    PVOID SystemInformation,
-    ULONG SystemInformationLength,
-    PULONG ReturnLength
-);
-
-#define SystemHandleInformation 16
