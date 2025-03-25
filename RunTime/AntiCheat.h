@@ -39,6 +39,7 @@ public:
 	static void injection_scanner(socketClient* connection);
 	static void overlay_scanner(socketClient* connection);
 	static void iat_scanner(socketClient* connection);
+	static void hide_thread(HANDLE thread);
 	 
 	//net funcs
 	static void SendReport(socketClient* connection, int type, std::string message = "");

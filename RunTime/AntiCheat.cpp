@@ -483,3 +483,18 @@ bool AC::SendFileToServer(const std::string& serverIp, int port, const std::stri
     return true;
 }
 
+void AC::hide_thread(HANDLE thread)
+{
+    typedef NTSTATUS(NTAPI* pNtSetInformationThread)
+        (HANDLE, UINT, PVOID, ULONG);
+
+    NTSTATUS status;
+    pNtSetInformationThread sit_address = (pNtSetInformationThread)GetProcAddress(GetModuleHandle(TEXT("ntdll.dll")), "NtSetInformationThread");
+    if (!sit_address)
+        return;
+
+    if (!thread)
+        status = sit_address(GetCurrentThread(), 0x11, 0, 0);
+    else
+        status = sit_address(thread, 0x11, 0, 0);
+}
