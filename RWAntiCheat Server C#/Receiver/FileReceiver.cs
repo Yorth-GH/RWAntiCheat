@@ -119,14 +119,23 @@ namespace RetroWar.ACSrv
 
                     File.Move(filePath, newPath);
 
+                    Logging.Instance.Debug($"File {fileName} received!");
+
                     if (newPath.Contains(".exe"))
                     {
                         string comp = fileName + " " + hash(newPath);
                         if (File.ReadLines("forbidden_processes.txt").Any(line => line.Equals(comp, StringComparison.OrdinalIgnoreCase)))
                         {
                             Logging.Instance.Debug($"Forbidden process found! Process name + hash: {newPath}");
-
                         }
+                        else
+                        {
+                            if (File.ReadLines("detected_signatures.txt").Any(line => SigScanner.scan(File.ReadAllBytes(newPath), SigScanner.sig_parser(line))))
+                            {
+                                Logging.Instance.Warning($"{newPath} contains known cheat signature! Adding to forbidden_processes.txt");
+                                File.AppendAllLines("forbidden_processes.txt", new string[] {newPath});
+                            }
+                        }       
                     }
                     else if (newPath.Contains(".dll"))
                     {
@@ -134,12 +143,15 @@ namespace RetroWar.ACSrv
                         if (!File.ReadLines("allowed_modules.txt").Any(line => line.Equals(comp, StringComparison.OrdinalIgnoreCase)))
                         {
                             Logging.Instance.Debug($"Unknown module found! Module name + hash: {newPath}");
-
+                            if (File.ReadLines("detected_signatures.txt").Any(line => SigScanner.scan(File.ReadAllBytes(newPath), SigScanner.sig_parser(line))))
+                            {
+                                Logging.Instance.Warning($"{newPath} contains known cheat signature!");
+                            }
+                                
                         }
+                        else
+                            File.Delete(newPath); //its an allowed module, no need to waste disk space
                     }
-
-                    Logging.Instance.Debug($"File {fileName} received!");
-
                 }
                 catch (Exception ex)
                 {
